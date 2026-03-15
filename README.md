@@ -86,6 +86,40 @@ The [blueprint](blueprint.md) contains a complete system prompt you can paste in
 | Commands | Real `.claude/commands/*.md` files with tab-complete support |
 | Branch protection | 1 approval required, restricted pushers, stale review dismissal |
 
+
+## The `/build` Command
+
+One thing we learned early: team members shouldn't need to know the difference between a persona, command, memory entry, or MCP server. They just want to build something.
+
+Add this to your team's `CLAUDE.md`:
+
+```markdown
+## Building Things
+
+When a user says `/build` or asks to "build" a capability, choose the right primitive:
+
+| Primitive | When to use |
+|-----------|------------|
+| **Persona** | Defines behavior, tone, or standards — loaded by commands |
+| **Command** | A workflow invoked via `/name` — does a specific task |
+| **Memory** | A persistent fact, preference, or reference |
+| **MCP Server** | Connects to an external API — only when called frequently |
+
+The user should never need to specify "make me a skill/agent/command/plugin."
+Just `/build [what they want]` and you decide the method.
+Explain what you chose and why in one line before building.
+```
+
+Now anyone on the team can say:
+
+```
+/build a way to check project status before standup
+/build a persona that writes in our brand voice
+/build something that pulls metrics from our dashboard weekly
+```
+
+Claude picks the right primitive and explains the choice before building it.
+
 ## Key Design Decisions
 
 | Decision | Why |
