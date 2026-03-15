@@ -1,0 +1,530 @@
+{
+  "$schema": "https://[your-github-org].github.io/claude-config/catalog.schema.json",
+  "_description": "[Your Company] Plugin & MCP Server Catalog. Edit this file to add/remove available tools for the team.",
+  "_announcement_convention": "Add 'announcement_id': '{key}-v1' to any NEW entry you want announced to users at next session start. Existing entries without this field are never announced (assumed already known). Bump to '-v2' to re-announce after major changes.",
+  "plugins": {
+    "superpowers@claude-plugins-official": {
+      "name": "Superpowers",
+      "description": "Brainstorming, TDD, debugging, code review, parallel agents, git worktrees",
+      "recommended": true,
+      "category": "workflow",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "feature-dev@claude-plugins-official": {
+      "name": "Feature Dev",
+      "description": "Guided feature development with codebase analysis and architecture focus",
+      "recommended": true,
+      "category": "workflow",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "commit-commands@claude-plugins-official": {
+      "name": "Commit Commands",
+      "description": "Git commit, push, PR creation workflows",
+      "recommended": true,
+      "category": "git",
+      "setupInstructions": [
+        "No setup required. Uses your existing git config."
+      ]
+    },
+    "code-review@claude-plugins-official": {
+      "name": "Code Review",
+      "description": "AI-powered code review and quality analysis for PRs",
+      "recommended": true,
+      "category": "quality",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "code-simplifier@claude-plugins-official": {
+      "name": "Code Simplifier",
+      "description": "Simplifies and refines code for clarity and maintainability",
+      "recommended": false,
+      "category": "quality",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "security-guidance@claude-plugins-official": {
+      "name": "Security Guidance",
+      "description": "Security audits, vulnerability scanning, secure coding patterns",
+      "recommended": true,
+      "category": "quality",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "claude-md-management@claude-plugins-official": {
+      "name": "CLAUDE.md Management",
+      "description": "Audit and improve CLAUDE.md files, capture session learnings",
+      "recommended": true,
+      "category": "workflow",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "claude-code-setup@claude-plugins-official": {
+      "name": "Claude Code Setup",
+      "description": "Analyze codebase and recommend Claude Code automations",
+      "recommended": false,
+      "category": "workflow",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "skill-creator@claude-plugins-official": {
+      "name": "Skill Creator",
+      "description": "Create, modify, and test custom skills",
+      "recommended": false,
+      "category": "workflow",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "playwright@claude-plugins-official": {
+      "name": "Playwright",
+      "description": "Browser automation for testing and web scraping",
+      "recommended": true,
+      "category": "tools",
+      "setupInstructions": [
+        "No API key required.",
+        "May need to install browsers: npx playwright install chromium"
+      ]
+    },
+    "context7@claude-plugins-official": {
+      "name": "Context7",
+      "description": "Fetch up-to-date documentation for any library",
+      "recommended": true,
+      "category": "tools",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "pinecone@claude-plugins-official": {
+      "name": "Pinecone",
+      "description": "Vector database search, RAG, and document Q&A",
+      "recommended": false,
+      "category": "tools",
+      "setupInstructions": [
+        "Email [admin-email@your-domain.com] with subject 'API Key Request: Pinecone'",
+        "Include your name and role",
+        "You'll receive the PINECONE_API_KEY via secure channel"
+      ]
+    },
+    "Notion@claude-plugins-official": {
+      "name": "Notion",
+      "description": "Search, create, and manage Notion pages and databases",
+      "recommended": false,
+      "category": "integrations",
+      "setupInstructions": [
+        "Email [admin-email@your-domain.com] with subject 'API Key Request: Notion'",
+        "Include your name and role",
+        "You'll receive the Notion integration token and sharing instructions"
+      ]
+    },
+    "frontend-design@claude-plugins-official": {
+      "name": "Frontend Design",
+      "description": "Production-grade frontend interfaces with high design quality",
+      "recommended": false,
+      "category": "development",
+      "setupInstructions": [
+        "No setup required. Enabled automatically."
+      ]
+    },
+    "figma@claude-plugins-official": {
+      "name": "Figma",
+      "description": "Implement designs from Figma with 1:1 visual fidelity",
+      "recommended": false,
+      "category": "development",
+      "setupInstructions": [
+        "Requires Figma MCP server connection.",
+        "See Figma plugin docs for setup."
+      ]
+    },
+    "semgrep@claude-plugins-official": {
+      "name": "Semgrep",
+      "description": "Static analysis and SAST scanning",
+      "recommended": false,
+      "category": "quality",
+      "setupInstructions": [
+        "Install Semgrep: pip install semgrep",
+        "Optional: semgrep login for pro rules"
+      ]
+    },
+    "firecrawl@claude-plugins-official": {
+      "name": "Firecrawl",
+      "description": "Web scraping with LLM-optimized output",
+      "recommended": false,
+      "category": "tools",
+      "setupInstructions": [
+        "Go to https://firecrawl.dev and create an account",
+        "Navigate to API Keys and copy your key",
+        "Set as FIRECRAWL_API_KEY in your .env"
+      ]
+    },
+    "supabase@claude-plugins-official": {
+      "name": "Supabase",
+      "description": "Supabase database and auth management",
+      "recommended": false,
+      "category": "integrations",
+      "setupInstructions": [
+        "Go to https://supabase.com/dashboard",
+        "Select your project > Settings > API",
+        "Copy the project URL and anon/service key"
+      ]
+    },
+    "vercel@claude-plugins-official": {
+      "name": "Vercel",
+      "description": "Deploy and manage Vercel applications",
+      "recommended": false,
+      "category": "integrations",
+      "setupInstructions": [
+        "Install Vercel CLI: npm install -g vercel",
+        "Authenticate: vercel login"
+      ]
+    },
+    "huggingface-skills@claude-plugins-official": {
+      "name": "Hugging Face",
+      "description": "ML model training, datasets, and Hugging Face Hub",
+      "recommended": false,
+      "category": "integrations",
+      "setupInstructions": [
+        "Go to https://huggingface.co/settings/tokens",
+        "Create a new token with appropriate permissions",
+        "Set as HF_TOKEN in your .env"
+      ]
+    }
+  },
+  "mcpServers": {
+    "salesforce-dx": {
+      "name": "Salesforce DX",
+      "description": "Salesforce org management, metadata, data queries, Apex tests",
+      "recommended": true,
+      "category": "core",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@salesforce/mcp",
+        "--orgs",
+        "${SF_TARGET_ORG}",
+        "--toolsets",
+        "orgs,metadata,data,users",
+        "--tools",
+        "run_apex_test",
+        "--allow-non-ga-tools"
+      ],
+      "requiredKeys": [
+        "SF_TARGET_ORG"
+      ],
+      "keyDescriptions": {
+        "SF_TARGET_ORG": "Salesforce org username (e.g. [admin@your-domain.com]). Run: sf org login web"
+      },
+      "setupInstructions": [
+        "Install Salesforce CLI: npm install -g @salesforce/cli",
+        "Authenticate: sf org login web",
+        "Verify: sf org list — copy your org username (e.g. your.email@[your-domain.com])",
+        "The setup script will ask for your org username"
+      ],
+      "visibility": "public"
+    },
+    "[your-kb-server]": {
+      "name": "VoIP Docs ([KB Platform])",
+      "description": "Search and manage [your-docs-site.com] knowledge base articles",
+      "recommended": true,
+      "category": "core",
+      "command": "node",
+      "args": [
+        "../[your-kb-mcp]/build/index.js"
+      ],
+      "env": {
+        "KB_PLATFORM_SUBDOMAIN": "[your-kb-server]"
+      },
+      "requiredKeys": [
+        "KB_PLATFORM_API_KEY"
+      ],
+      "keyDescriptions": {
+        "KB_PLATFORM_API_KEY": "[your-kb-platform.com] > Settings > API. Ask: [Admin 1], [Admin 2]"
+      },
+      "setupInstructions": [
+        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
+        "Include your name and role",
+        "You'll receive the KB_PLATFORM_API_KEY via secure channel",
+        "Paste it when the setup script or catalog.sh prompts you"
+      ],
+      "visibility": "public"
+    },
+    "[your-voip-server]": {
+      "name": "[Platform API] VoIP",
+      "description": "VoIP user management, call records, domains, billing",
+      "recommended": true,
+      "category": "core",
+      "command": "node",
+      "args": [
+        "../[your-voip-server]-mcp-server/build/index.js"
+      ],
+      "env": {
+        "PLATFORM_API_URL": "https://[api.your-platform.com]"
+      },
+      "requiredKeys": [
+        "PLATFORM_API_TOKEN"
+      ],
+      "keyDescriptions": {
+        "PLATFORM_API_TOKEN": "[Your password manager]. Ask: [Admin 1], [Admin 2], Steven"
+      },
+      "setupInstructions": [
+        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
+        "Include your name and role",
+        "You'll receive the PLATFORM_API_TOKEN via secure channel",
+      ],
+      "visibility": "public"
+    },
+    "ms365": {
+      "name": "Microsoft 365",
+      "description": "Outlook email/calendar search, SharePoint, Teams messages",
+      "recommended": true,
+      "category": "core",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@softeria/ms-365-mcp-server",
+        "--org-mode"
+      ],
+      "requiredKeys": [
+        "MS365_MCP_CLIENT_ID",
+        "MS365_MCP_TENANT_ID"
+      ],
+      "optionalKeys": [
+        "MS365_MCP_CLIENT_SECRET"
+      ],
+      "keyDescriptions": {
+        "MS365_MCP_CLIENT_ID": "Azure Portal > App Registrations > '[Your Company] MCP'. Ask: [Admin 1], [Admin 2]",
+        "MS365_MCP_TENANT_ID": "Azure Portal > App Registrations > '[Your Company] MCP'. Ask: [Admin 1], [Admin 2]",
+        "MS365_MCP_CLIENT_SECRET": "Azure Portal > App Registrations > Certificates. Ask: Ray"
+      },
+      "setupInstructions": [
+        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
+        "Include your name and role",
+        "You'll receive MS365_MCP_CLIENT_ID, MS365_MCP_TENANT_ID, and MS365_MCP_CLIENT_SECRET",
+        "Paste each when the setup script or catalog.sh prompts you"
+      ],
+      "visibility": "public"
+    },
+    "github": {
+      "name": "GitHub",
+      "description": "Repository management, issues, PRs, branch protection, Actions, and GitHub Projects — without dropping to gh CLI",
+      "announcement_id": "github-v1",
+      "recommended": true,
+      "category": "core",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
+      },
+      "requiredKeys": [
+        "GITHUB_PERSONAL_ACCESS_TOKEN"
+      ],
+      "keyDescriptions": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "github.com/settings/tokens — Classic token. Required scopes: repo, read:org, project"
+      },
+      "setupInstructions": [
+        "Go to https://github.com/settings/tokens",
+        "Click 'Generate new token (classic)'",
+        "Set expiration (recommend 1 year)",
+        "Check these scopes: repo (full), read:org, project",
+        "Copy the token — it won't be shown again",
+        "Paste it when prompted for GITHUB_PERSONAL_ACCESS_TOKEN"
+      ],
+      "promptExamples": [
+        "Create a GitHub issue for [description] and label it blueprint",
+        "List all open issues in [YourGitHubOrg]/claude-config",
+        "Close issue #5 and add a comment with what was done",
+        "Check the status of our latest GitHub Actions run"
+      ],
+      "visibility": "public"
+    },
+    "cognitoforms": {
+      "name": "Cognito Forms",
+      "description": "Form submissions and data via Cognito Forms API",
+      "recommended": false,
+      "category": "optional",
+      "command": "bash",
+      "args": [
+        "-c",
+        "echo 'Cognito Forms API ready'; read"
+      ],
+      "requiredKeys": [
+        "COGNITO_FORMS_API_KEY"
+      ],
+      "keyDescriptions": {
+        "COGNITO_FORMS_API_KEY": "Cognito Forms > Organization > Integrations > API Key. Ask: Ray"
+      },
+      "setupInstructions": [
+        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
+        "Include your name and role",
+        "You'll receive the COGNITO_FORMS_API_KEY via secure channel"
+      ],
+      "visibility": "public"
+    },
+    "n8n": {
+      "name": "n8n Workflows",
+      "description": "Build, list, execute, and debug n8n workflows without leaving Claude — list workflows, get node configs, trigger executions, and inspect run history",
+      "announcement_id": "n8n-v1",
+      "recommended": false,
+      "category": "optional",
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; [ -f .env ] && source .env; set +a; exec npx -y n8n-mcp"
+      ],
+      "env": {
+        "MCP_MODE": "stdio",
+        "LOG_LEVEL": "error",
+        "DISABLE_CONSOLE_OUTPUT": "true",
+        "N8N_API_URL": "https://[your-n8n-instance.app.n8n.cloud]"
+      },
+      "requiredKeys": [
+        "N8N_API_KEY"
+      ],
+      "keyDescriptions": {
+        "N8N_API_KEY": "n8n Cloud > Settings > API > Create API Key. Ask: [Admin 1], [Admin 2]"
+      },
+      "setupInstructions": [
+        "1. Log in to https://[your-n8n-instance.app.n8n.cloud]",
+        "2. Click your avatar (bottom-right) > Settings > API",
+        "3. Click 'Create API Key', name it (e.g. Claude Code), copy the key",
+        "4. Paste it when prompted for N8N_API_KEY",
+        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]"
+      ],
+      "promptExamples": [
+        "List all active n8n workflows",
+        "Show me the nodes in the Channel Partner Application Processor workflow",
+        "Execute the Calendly Lead Activity Logger workflow",
+        "Get the last 5 executions of the CSAT workflow and show any errors"
+      ],
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 2
+      },
+      "visibility": "public"
+    },
+    "pal": {
+      "name": "PAL (Multi-model)",
+      "description": "Route prompts to Gemini, OpenAI, or OpenRouter models",
+      "recommended": false,
+      "category": "optional",
+      "command": "bash",
+      "args": [
+        "-c",
+        "uvx --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server"
+      ],
+      "requiredKeys": [],
+      "optionalKeys": [
+        "GEMINI_API_KEY",
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY"
+      ],
+      "env": {
+        "DISABLED_TOOLS": "analyze,refactor,testgen,secaudit,docgen,tracer",
+        "DEFAULT_MODEL": "auto"
+      },
+      "keyDescriptions": {
+        "GEMINI_API_KEY": "aistudio.google.com — self-service",
+        "OPENAI_API_KEY": "platform.openai.com — self-service",
+        "OPENROUTER_API_KEY": "openrouter.ai — self-service"
+      },
+      "setupInstructions": [
+        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
+        "Include your name, role, and which models you need (Gemini, OpenAI, OpenRouter)",
+        "You'll receive the requested keys via secure channel",
+        "All keys are optional — PAL works with any one of them"
+      ],
+      "visibility": "public"
+    },
+    "yealink": {
+      "name": "Yealink YMCS & RPS",
+      "description": "Yealink device management (YMCS) and remote provisioning (RPS) — list/reboot/add/remove devices, manage sites and enterprises, register MAC addresses to provisioning URLs",
+      "recommended": false,
+      "category": "optional",
+      "command": "node",
+      "args": [
+        "../yealink-mcp-server/build/index.js"
+      ],
+      "env": {
+        "YMCS_API_URL": "https://api-dm.yealink.com:8445",
+        "RPS_API_URL": "https://rps.yealink.com"
+      },
+      "requiredKeys": [
+        "YMCS_CLIENT_ID",
+        "YMCS_CLIENT_SECRET",
+        "RPS_USERNAME",
+        "RPS_PASSWORD"
+      ],
+      "keyDescriptions": {
+        "YMCS_CLIENT_ID": "YMCS portal > Enterprise > Open API > Client Credentials. Ask: Ray",
+        "YMCS_CLIENT_SECRET": "YMCS portal > Enterprise > Open API > Client Credentials. Ask: Ray",
+        "RPS_USERNAME": "rps.yealink.com account username. Ask: Ray",
+        "RPS_PASSWORD": "rps.yealink.com account password. Ask: Ray"
+      },
+      "setupInstructions": [
+        "── YMCS (Device Management) ──",
+        "1. Log in to YMCS at https://dm.yealink.com",
+        "2. Go to System > Integration > API",
+        "3. Click 'Edit' to generate or retrieve your Client ID and Client Secret",
+        "   NOTE: Only one set of credentials exists per enterprise — regenerating invalidates the old ones",
+        "── RPS (Remote Provisioning) ──",
+        "4. RPS accounts are issued by Yealink — you cannot self-register",
+        "5. Contact your Yealink distributor and ask them to create a VAR/reseller RPS account",
+        "   OR email rps@yealink.com directly to apply",
+        "6. Once approved, log in at https://rps.yealink.com with the issued username and password",
+        "── Add to your MCP config ──",
+        "7. Set YMCS_CLIENT_ID and YMCS_CLIENT_SECRET from step 3",
+        "8. Set RPS_USERNAME and RPS_PASSWORD from step 6"
+      ],
+      "visibility": "public"
+    },
+    "clickup": {
+      "name": "ClickUp",
+      "description": "Project management — tasks, spaces, lists, comments, time tracking",
+      "announcement_id": "clickup-v1",
+      "recommended": false,
+      "category": "optional",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@taazkareem/clickup-mcp-server"
+      ],
+      "requiredKeys": [
+        "CLICKUP_API_TOKEN"
+      ],
+      "keyDescriptions": {
+        "CLICKUP_API_TOKEN": "ClickUp personal API token. See setupInstructions."
+      },
+      "setupInstructions": [
+        "Go to https://app.clickup.com",
+        "Click your avatar (bottom-left) > Settings",
+        "Navigate to Apps > API Token",
+        "Click 'Generate' or copy your existing personal token",
+        "If you need workspace access, ask your manager",
+        "Token format: pk_XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+      ],
+      "visibility": "public"
+    }
+  },
+  "categories": {
+    "core": "Required for standard [Your Company] workflows",
+    "optional": "Available for specific use cases",
+    "workflow": "Development workflow enhancement",
+    "quality": "Code quality and security",
+    "tools": "External tool integrations",
+    "integrations": "Third-party service connections",
+    "development": "Frontend and design tools",
+    "git": "Git and version control"
+  }
+}
