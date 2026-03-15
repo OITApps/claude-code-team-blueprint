@@ -1,0 +1,12 @@
+{
+  "_description": "Team announcements. Each entry shows ONCE per user. Add new entries at the top. Admins: use a unique ID and today's date.",
+  "announcements": [
+    {
+      "id": "welcome-2026-03-15",
+      "date": "2026-03-15",
+      "title": "Claude Code is now available for the team",
+      "message": "Run ~/claude-config/scripts/setup.sh . in your project directory to get started. Full instructions: https://github.com/[YourGitHubOrg]/claude-config",
+      "author": "[Admin Name]"
+    }
+  ]
+}
