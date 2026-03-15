@@ -228,7 +228,12 @@
         "Verify: sf org list — copy your org username (e.g. your.email@[your-domain.com])",
         "The setup script will ask for your org username"
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 16
+      }
     },
     "[your-kb-server]": {
       "name": "VoIP Docs ([KB Platform])",
@@ -254,7 +259,12 @@
         "You'll receive the KB_PLATFORM_API_KEY via secure channel",
         "Paste it when the setup script or catalog.sh prompts you"
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.125,
+        "user_count": 16
+      }
     },
     "[your-voip-server]": {
       "name": "[Platform API] VoIP",
@@ -279,7 +289,12 @@
         "Include your name and role",
         "You'll receive the PLATFORM_API_TOKEN via secure channel",
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.9375,
+        "user_count": 16
+      }
     },
     "ms365": {
       "name": "Microsoft 365",
@@ -310,7 +325,13 @@
         "You'll receive MS365_MCP_CLIENT_ID, MS365_MCP_TENANT_ID, and MS365_MCP_CLIENT_SECRET",
         "Paste each when the setup script or catalog.sh prompts you"
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.25,
+        "user_count": 16,
+        "_note": "User portion only (email/cal/Teams). Admin portion (SharePoint/OneDrive, 2 mgrs @ $40.87) tracked separately — pending Issue #7 catalog split."
+      }
     },
     "github": {
       "name": "GitHub",
@@ -346,7 +367,12 @@
         "Close issue #5 and add a comment with what was done",
         "Check the status of our latest GitHub Actions run"
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 4
+      }
     },
     "cognitoforms": {
       "name": "Cognito Forms",
@@ -369,7 +395,12 @@
         "Include your name and role",
         "You'll receive the COGNITO_FORMS_API_KEY via secure channel"
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 1,
+        "user_count": 1
+      }
     },
     "n8n": {
       "name": "n8n Workflows",
@@ -445,7 +476,12 @@
         "You'll receive the requested keys via secure channel",
         "All keys are optional — PAL works with any one of them"
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 2
+      }
     },
     "yealink": {
       "name": "Yealink YMCS & RPS",
@@ -487,7 +523,12 @@
         "7. Set YMCS_CLIENT_ID and YMCS_CLIENT_SECRET from step 3",
         "8. Set RPS_USERNAME and RPS_PASSWORD from step 6"
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 1
+      }
     },
     "clickup": {
       "name": "ClickUp",
@@ -514,7 +555,12 @@
         "If you need workspace access, ask your manager",
         "Token format: pk_XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
       ],
-      "visibility": "public"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.25,
+        "user_count": 8
+      }
     }
   },
   "categories": {
