@@ -146,6 +146,20 @@ We standardized on these terms to eliminate confusion:
 | **Catalog** | Approved plugins & MCPs for the team | `catalog.json` |
 | **Memory** | Personal persistent context | `.claude/memory/` (never shared) |
 
+
+## Staying Up to Date
+
+This blueprint is actively maintained. As we build new features into our private team configuration at OIT, we sanitize and publish them here so the community benefits. Company names, API keys, internal URLs, and employee names are stripped automatically before publishing.
+
+Recent additions synced from our live setup:
+- `/build` universal builder — team members describe what they want, Claude picks the right primitive
+- Announcement system — admins post one-time messages that display on next sync
+- Auto-discovery pipeline — repos self-register tools via `.claude-catalog-entry.json`
+- Per-tool setup instructions in the catalog — step-by-step key provisioning
+- Publish script with sanitization — how we sync private → public without leaking company info
+
+When we add something new, it lands here. Watch or star the repo to get notified.
+
 ## Getting Started
 
 1. Read the [blueprint](blueprint.md)
