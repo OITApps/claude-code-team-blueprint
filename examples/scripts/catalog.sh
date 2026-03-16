@@ -327,7 +327,13 @@ for key in all_keys:
         print(f"    {key} {req_label}")
         if desc:
             print(f"      Source: {desc}")
-        val = input(f"      Value: ").strip()
+        sys.stdout.write(f"      Value: ")
+        sys.stdout.flush()
+        try:
+            with open('/dev/tty') as tty:
+                val = tty.readline().strip()
+        except OSError:
+            val = ''
         if val:
             env[key] = val
             changed = True
