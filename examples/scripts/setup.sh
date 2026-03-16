@@ -1,24 +1,120 @@
 #!/usr/bin/env bash
 # setup.sh — First-time Claude Code setup for [Your Company] team members
-# Usage: ./scripts/setup.sh [project-dir]
+# Usage: ./scripts/setup.sh
 #
 # Reads catalog.json for available plugins and MCP servers.
-# Creates .claude/settings.local.json, .mcp.json, and .env.
+# Writes .env and settings.json to ~/.claude/; registers MCP servers via claude mcp add.
 
 set -euo pipefail
+
+# ── Step tracking ────────────────────────────────────────────────
+STEP_RESULTS=()
+step_ok()   { STEP_RESULTS+=("✅ $1"); echo "  ✅  $1"; }
+step_fail() { STEP_RESULTS+=("❌ $1: $2"); echo "  ❌  $1 — $2"; }
+step_warn() { STEP_RESULTS+=("⚠️  $1: $2"); echo "  ⚠️   $1 — $2"; }
+print_summary() {
+  echo ""
+  echo "=== Setup Summary ==="
+  for r in "${STEP_RESULTS[@]+"${STEP_RESULTS[@]}"}"; do
+    echo "  $r"
+  done
+  echo ""
+}
+trap print_summary EXIT
+
+# ── Banner ───────────────────────────────────────────────────────
+ORANGE='\033[38;5;208m'; RESET='\033[0m'
+printf "\n${ORANGE}  ┌──────────────────────────────────────────────────────┐\n"
+printf "  │  Claude Code Team Commander · by [Admin Name]          │\n"
+printf "  │  github.com/[your-github-org] · github.com/[your-github-username]              │\n"
+printf "  │  Personas, tools & hooks active                      │\n"
+printf "  └──────────────────────────────────────────────────────┘${RESET}\n\n"
+
+# ── Pre-flight: dependency checks ───────────────────────────────
+echo "=== [Your Company] Claude Code Setup — Pre-flight ==="
+echo ""
+
+PREFLIGHT_PASS=true
+
+check_dep() {
+  local cmd="$1" label="$2" install_hint="$3"
+  if command -v "$cmd" &>/dev/null; then
+    echo "  ✅  $label ($(command -v "$cmd"))"
+  else
+    echo "  ❌  $label — not found"
+    echo "      Install: $install_hint"
+    PREFLIGHT_PASS=false
+  fi
+}
+
+if [[ "$(uname)" == "Darwin" ]]; then
+  _pkg="brew install"
+  _python_hint="xcode-select --install  OR  brew install python3"
+  _gh_hint="brew install gh"
+else
+  _pkg="sudo apt install"
+  _python_hint="sudo apt install python3"
+  _gh_hint="sudo apt install gh  OR  see https://cli.github.com"
+fi
+
+check_dep "git"     "Git"            "$_pkg git"
+check_dep "python3" "Python 3"       "$_python_hint  (v3.8+ required)"
+check_dep "node"    "Node.js"        "$_pkg node  (v18+ required)"
+check_dep "claude"  "Claude Code"    "$_pkg claude-code  OR  npm install -g @anthropic-ai/claude-code"
+check_dep "sf"      "Salesforce CLI" "npm install -g @salesforce/cli"
+check_dep "gh"      "GitHub CLI"     "$_gh_hint  (needed for worktrees + GitHub MCP auth)"
+
+echo ""
+
+if [[ "$PREFLIGHT_PASS" != "true" ]]; then
+  echo "  Some dependencies are missing. Install them and re-run setup."
+  echo "  Claude Code is required. Others can be installed later."
+  echo ""
+  read -rp "  Continue anyway? [y/N] " _cont
+  if [[ "$(echo "$_cont" | tr '[:upper:]' '[:lower:]')" != "y" ]]; then
+    echo "  Aborted."
+    exit 1
+  fi
+  echo ""
+fi
+
+# ── Pre-flight: OCC repo freshness ──────────────────────────────
+OCC_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+OCC_REPO="https://github.com/[YourGitHubOrg]/claude-config.git"
+
+if [[ -d "$OCC_DIR/.git" ]]; then
+  echo "  Pulling latest OCC updates..."
+  if git -C "$OCC_DIR" pull --quiet 2>/dev/null; then
+    echo "  ✅  OCC is up to date."
+  else
+    echo "  ⚠️   Pull failed — OCC may have local changes or merge conflicts."
+    echo "      This can happen if you edited files in ~/claude-config directly."
+    echo ""
+    read -rp "  Delete ~/claude-config and re-clone? (local changes will be lost) [y/N] " _reclone
+    if [[ "$(echo "$_reclone" | tr '[:upper:]' '[:lower:]')" == "y" ]]; then
+      rm -rf "$OCC_DIR"
+      git clone "$OCC_REPO" "$OCC_DIR"
+      exec "$OCC_DIR/scripts/setup.sh"
+    else
+      echo "  Continuing with existing OCC (may be outdated)."
+    fi
+  fi
+  echo ""
+fi
 
 # Check for team announcements
 SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [[ -f "$SOURCE_DIR/check-announcements.sh" ]]; then
-  bash "$SOURCE_DIR/check-announcements.sh" "${1:-.}"
+  bash "$SOURCE_DIR/check-announcements.sh"
 fi
 
-PROJECT_DIR="${1:-.}"
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CATALOG="$SCRIPT_DIR/catalog.json"
-SETTINGS="$PROJECT_DIR/.claude/settings.local.json"
-MCP_FILE="$PROJECT_DIR/.mcp.json"
-ENV_FILE="$PROJECT_DIR/.env"
+CLAUDE_DIR="$HOME/.claude"
+SETTINGS="$CLAUDE_DIR/settings.json"
+ENV_FILE="$CLAUDE_DIR/.env"
+
+mkdir -p "$CLAUDE_DIR"
 
 if [[ ! -f "$CATALOG" ]]; then
   echo "Error: catalog.json not found. Run: git -C $SCRIPT_DIR pull"
@@ -26,66 +122,266 @@ if [[ ! -f "$CATALOG" ]]; then
 fi
 
 echo "=== [Your Company] Claude Code Setup ==="
-echo "Project: $(cd "$PROJECT_DIR" && pwd)"
-echo "Catalog: $CATALOG"
 echo ""
 
 # ── Step 1: Copy personas and commands ──────────────────────────
-echo "[1/5] Copying personas and commands..."
-mkdir -p "$PROJECT_DIR/.claude/commands" "$PROJECT_DIR/.claude/personas"
+echo "[1/8] Copying personas and commands..."
+mkdir -p "$CLAUDE_DIR/commands" "$CLAUDE_DIR/personas"
 
-cp -r "$SCRIPT_DIR/.claude/personas/"*.md "$PROJECT_DIR/.claude/personas/" 2>/dev/null || true
-cp -r "$SCRIPT_DIR/.claude/commands/"*.md "$PROJECT_DIR/.claude/commands/" 2>/dev/null || true
-echo "  Done."
-
-# ── Step 2: Enable recommended plugins ──────────────────────────
-echo ""
-echo "[2/5] Configuring plugins from catalog..."
-
-# Read existing settings or create new
-if [[ -f "$SETTINGS" ]]; then
-  echo "  Found existing settings.local.json"
+if cp -r "$SCRIPT_DIR/.claude/personas/"*.md "$CLAUDE_DIR/personas/" 2>/dev/null \
+   && cp -r "$SCRIPT_DIR/.claude/commands/"*.md "$CLAUDE_DIR/commands/" 2>/dev/null; then
+  step_ok "Personas and commands copied"
 else
-  echo '{}' > "$SETTINGS"
+  step_warn "Personas/commands" "some files may not have copied"
 fi
 
-# Enable recommended plugins from catalog
-python3 - "$CATALOG" "$SETTINGS" <<'PYEOF'
-import json, sys
-
-catalog = json.load(open(sys.argv[1]))
-settings_file = sys.argv[2]
-
-try:
-    settings = json.load(open(settings_file))
-except (FileNotFoundError, json.JSONDecodeError):
-    settings = {}
-
-plugins = settings.get("enabledPlugins", {})
-added = []
-
-for pid, p in catalog["plugins"].items():
-    if p["recommended"] and pid not in plugins:
-        plugins[pid] = True
-        added.append(p["name"])
-    elif pid not in plugins:
-        plugins[pid] = False
-
-settings["enabledPlugins"] = plugins
-
-with open(settings_file, 'w') as f:
-    json.dump(settings, f, indent=2)
-    f.write('\n')
-
-if added:
-    print(f"  Enabled {len(added)} recommended plugins: {', '.join(added)}")
-else:
-    print("  Plugins already configured.")
-PYEOF
-
-# ── Step 3: Collect API keys for recommended MCP servers ────────
+# ── Step 2: Select MCP servers ──────────────────────────────────
 echo ""
-echo "[3/5] MCP Server API Keys"
+echo "[2/8] Select MCP servers to install"
+echo "  * = recommended   ↻ = already installed (will migrate)"
+echo "  Toggle by number, 'r' recommended, 'a' all, 'n' none, or Enter to continue."
+
+# Detect already-installed MCP servers and existing API keys
+EXISTING_MCPS=()
+while IFS= read -r _mid; do
+  EXISTING_MCPS+=("$_mid")
+done < <(python3 -c "
+import json, os
+p = os.path.expanduser('~/.claude.json')
+if os.path.exists(p):
+    d = json.load(open(p))
+    for k in d.get('mcpServers', {}):
+        print(k)
+" 2>/dev/null)
+
+EXISTING_KEYS=()
+while IFS= read -r _key; do
+  EXISTING_KEYS+=("$_key")
+done < <(python3 -c "
+import os
+env_file = os.path.expanduser('~/.claude/.env')
+if os.path.exists(env_file):
+    for line in open(env_file):
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            k, v = line.split('=', 1)
+            v = v.strip().strip('\"')
+            if v and v != 'REPLACE_ME':
+                print(k.strip())
+" 2>/dev/null)
+
+# Build MCP arrays from catalog
+MCP_IDS=(); MCP_NAMES=(); MCP_RECS=(); MCP_INSTALLED=()
+while IFS='|' read -r _rec _mid _name _desc _keys; do
+  MCP_IDS+=("$_mid")
+  MCP_NAMES+=("$_name — $_desc${_keys:+ [keys: $_keys]}")
+  MCP_RECS+=("$_rec")
+  # Mark as installed if registered in ~/.claude.json
+  _is_installed=0
+  for _e in "${EXISTING_MCPS[@]+"${EXISTING_MCPS[@]}"}"; do [[ "$_e" == "$_mid" ]] && _is_installed=1 && break; done
+  MCP_INSTALLED+=("$_is_installed")
+done < <(python3 -c "
+import json
+c = json.load(open('$CATALOG'))
+for mid, m in sorted(c['mcpServers'].items(), key=lambda x: (not x[1]['recommended'], x[1]['name'])):
+    rec = '*' if m['recommended'] else ' '
+    keys = ', '.join(m.get('requiredKeys', []))
+    print(f'{rec}|{mid}|{m[\"name\"]}|{m[\"description\"]}|{keys}')
+")
+
+# Print migration summary if any installed servers detected
+_installed_count=0
+for _v in "${MCP_INSTALLED[@]+"${MCP_INSTALLED[@]}"}"; do (( _v )) && (( _installed_count++ )); done
+if (( _installed_count > 0 )); then
+  echo ""
+  echo "  Found $_installed_count existing MCP server(s) — they'll be migrated to the latest config."
+fi
+
+# Pre-select: already registered servers first, then new recommended ones
+SELECTED_MCPS=()
+for _i in "${!MCP_IDS[@]}"; do
+  if [[ "${MCP_INSTALLED[$_i]}" == "1" ]]; then
+    SELECTED_MCPS+=("${MCP_IDS[$_i]}")
+  fi
+done
+for _i in "${!MCP_IDS[@]}"; do
+  if [[ "${MCP_RECS[$_i]}" == "*" ]]; then
+    _already=0
+    for _s in "${SELECTED_MCPS[@]+"${SELECTED_MCPS[@]}"}"; do [[ "$_s" == "${MCP_IDS[$_i]}" ]] && _already=1 && break; done
+    [[ $_already -eq 0 ]] && SELECTED_MCPS+=("${MCP_IDS[$_i]}")
+  fi
+done
+
+while true; do
+  echo ""
+  for _i in "${!MCP_IDS[@]}"; do
+    _id="${MCP_IDS[$_i]}"
+    _in_sel=0
+    for _s in "${SELECTED_MCPS[@]+"${SELECTED_MCPS[@]}"}"; do [[ "$_s" == "$_id" ]] && _in_sel=1 && break; done
+    _mark="[ ]"; [[ $_in_sel -eq 1 ]] && _mark="[x]"
+    _tag=""
+    if [[ "${MCP_INSTALLED[$_i]}" == "1" ]]; then
+      _tag=" ↻"
+    elif [[ "${MCP_RECS[$_i]}" == "*" ]]; then
+      _tag=" *"
+    fi
+    printf "  %s %2d) %s%s\n" "$_mark" "$((_i+1))" "${MCP_NAMES[$_i]}" "$_tag"
+  done
+  echo ""
+  printf "  Toggle (numbers), r=recommended, a=all, n=none, Enter=done: "
+  read -r _sel
+  [[ -z "$_sel" ]] && break
+  case "$_sel" in
+    r|R)
+      SELECTED_MCPS=()
+      for _i in "${!MCP_IDS[@]}"; do [[ "${MCP_RECS[$_i]}" == "*" ]] && SELECTED_MCPS+=("${MCP_IDS[$_i]}"); done
+      ;;
+    a|A) SELECTED_MCPS=("${MCP_IDS[@]}") ;;
+    n|N) SELECTED_MCPS=() ;;
+    *)
+      for _num in $_sel; do
+        if [[ "$_num" =~ ^[0-9]+$ ]] && (( _num >= 1 && _num <= ${#MCP_IDS[@]} )); then
+          _id="${MCP_IDS[$(( _num-1 ))]}"
+          _found=0; _new=()
+          for _s in "${SELECTED_MCPS[@]+"${SELECTED_MCPS[@]}"}"; do
+            [[ "$_s" == "$_id" ]] && _found=1 || _new+=("$_s")
+          done
+          if (( _found )); then
+            SELECTED_MCPS=("${_new[@]+"${_new[@]}"}")
+          else
+            SELECTED_MCPS+=("$_id")
+          fi
+        fi
+      done
+      ;;
+  esac
+done
+
+# ── Step 3: Select plugins ───────────────────────────────────────
+echo ""
+echo "[3/8] Select plugins to enable"
+echo "  * = recommended   ↻ = already installed   🔒 = always on"
+echo "  Toggle by number, or Enter to continue."
+
+# Detect already-enabled plugins from settings.json
+EXISTING_PLUGINS=()
+while IFS= read -r _pid; do
+  EXISTING_PLUGINS+=("$_pid")
+done < <(python3 -c "
+import json, os
+p = os.path.expanduser('~/.claude/settings.json')
+if os.path.exists(p):
+    s = json.load(open(p))
+    for pid, enabled in s.get('enabledPlugins', {}).items():
+        if enabled:
+            print(pid)
+" 2>/dev/null)
+
+# Build plugin arrays from catalog
+PLUGIN_IDS=(); PLUGIN_NAMES=(); PLUGIN_RECS=(); PLUGIN_LOCKED=(); PLUGIN_INSTALLED=()
+while IFS='|' read -r _rec _locked _pid _name _desc _cat; do
+  PLUGIN_IDS+=("$_pid")
+  PLUGIN_NAMES+=("$_name — $_desc")
+  PLUGIN_RECS+=("$_rec")
+  PLUGIN_LOCKED+=("$_locked")
+  _is_installed=0
+  for _e in "${EXISTING_PLUGINS[@]+"${EXISTING_PLUGINS[@]}"}"; do [[ "$_e" == "$_pid" ]] && _is_installed=1 && break; done
+  PLUGIN_INSTALLED+=("$_is_installed")
+done < <(python3 -c "
+import json
+c = json.load(open('$CATALOG'))
+for pid, p in sorted(c['plugins'].items(), key=lambda x: (not x[1]['recommended'], x[1]['name'])):
+    rec = '*' if p['recommended'] else ' '
+    locked = '1' if p.get('alwaysEnabled') else '0'
+    print(f'{rec}|{locked}|{pid}|{p[\"name\"]}|{p[\"description\"]}|{p[\"category\"]}')
+")
+
+# Print migration summary if any installed plugins detected
+_installed_p_count=0
+for _v in "${PLUGIN_INSTALLED[@]+"${PLUGIN_INSTALLED[@]}"}"; do (( _v )) && (( _installed_p_count++ )); done
+if (( _installed_p_count > 0 )); then
+  echo ""
+  echo "  Found $_installed_p_count existing plugin(s) — they'll be preserved."
+fi
+
+# Pre-select: already-enabled plugins, then recommended + always-enabled
+SELECTED_PLUGINS=()
+if (( _installed_p_count > 0 )); then
+  for _i in "${!PLUGIN_IDS[@]}"; do
+    if [[ "${PLUGIN_INSTALLED[$_i]}" == "1" ]] || [[ "${PLUGIN_LOCKED[$_i]}" == "1" ]]; then
+      SELECTED_PLUGINS+=("${PLUGIN_IDS[$_i]}")
+    fi
+  done
+else
+  # First run — default to recommended + always-enabled
+  for _i in "${!PLUGIN_IDS[@]}"; do
+    [[ "${PLUGIN_RECS[$_i]}" == "*" || "${PLUGIN_LOCKED[$_i]}" == "1" ]] && SELECTED_PLUGINS+=("${PLUGIN_IDS[$_i]}")
+  done
+fi
+
+while true; do
+  echo ""
+  for _i in "${!PLUGIN_IDS[@]}"; do
+    _id="${PLUGIN_IDS[$_i]}"
+    _in_sel=0
+    for _s in "${SELECTED_PLUGINS[@]+"${SELECTED_PLUGINS[@]}"}"; do [[ "$_s" == "$_id" ]] && _in_sel=1 && break; done
+    _mark="[ ]"; [[ $_in_sel -eq 1 ]] && _mark="[x]"
+    _tag=""
+    if [[ "${PLUGIN_LOCKED[$_i]}" == "1" ]]; then
+      _tag=" 🔒"
+    elif [[ "${PLUGIN_INSTALLED[$_i]}" == "1" ]]; then
+      _tag=" ↻"
+    elif [[ "${PLUGIN_RECS[$_i]}" == "*" ]]; then
+      _tag=" *"
+    fi
+    printf "  %s %2d) %s%s\n" "$_mark" "$((_i+1))" "${PLUGIN_NAMES[$_i]}" "$_tag"
+  done
+  echo ""
+  printf "  Toggle (numbers), r=recommended, a=all, n=none, Enter=done: "
+  read -r _sel
+  [[ -z "$_sel" ]] && break
+  case "$_sel" in
+    r|R)
+      SELECTED_PLUGINS=()
+      for _i in "${!PLUGIN_IDS[@]}"; do
+        [[ "${PLUGIN_RECS[$_i]}" == "*" || "${PLUGIN_LOCKED[$_i]}" == "1" ]] && SELECTED_PLUGINS+=("${PLUGIN_IDS[$_i]}")
+      done
+      ;;
+    a|A) SELECTED_PLUGINS=("${PLUGIN_IDS[@]}") ;;
+    n|N)
+      SELECTED_PLUGINS=()
+      for _i in "${!PLUGIN_IDS[@]}"; do
+        [[ "${PLUGIN_LOCKED[$_i]}" == "1" ]] && SELECTED_PLUGINS+=("${PLUGIN_IDS[$_i]}")
+      done
+      ;;
+    *)
+      for _num in $_sel; do
+        if [[ "$_num" =~ ^[0-9]+$ ]] && (( _num >= 1 && _num <= ${#PLUGIN_IDS[@]} )); then
+          _idx=$(( _num-1 ))
+          _id="${PLUGIN_IDS[$_idx]}"
+          # Cannot deselect locked plugins
+          if [[ "${PLUGIN_LOCKED[$_idx]}" == "1" ]]; then
+            echo "  (${PLUGIN_IDS[$_idx]} is always enabled)"
+            continue
+          fi
+          _found=0; _new=()
+          for _s in "${SELECTED_PLUGINS[@]+"${SELECTED_PLUGINS[@]}"}"; do
+            [[ "$_s" == "$_id" ]] && _found=1 || _new+=("$_s")
+          done
+          if (( _found )); then
+            SELECTED_PLUGINS=("${_new[@]+"${_new[@]}"}")
+          else
+            SELECTED_PLUGINS+=("$_id")
+          fi
+        fi
+      done
+      ;;
+  esac
+done
+
+# ── Step 4: Collect API keys for selected MCP servers ───────────
+echo ""
+echo "[4/8] MCP Server API Keys"
 echo "  Press Enter to skip any key you don't have yet."
 echo ""
 
@@ -93,16 +389,44 @@ echo ""
 if [[ -f "$ENV_FILE" ]]; then
   echo "  Loading existing .env values..."
   set -a; source "$ENV_FILE" 2>/dev/null; set +a
+  # Show which keys are already configured
+  _existing_key_count=${#EXISTING_KEYS[@]}
+  if (( _existing_key_count > 0 )); then
+    echo "  Found $_existing_key_count existing key(s) — already-set keys will be preserved."
+    echo "  Keys with values: ${EXISTING_KEYS[*]}"
+    echo ""
+  fi
 fi
 
-# Prompt for keys from catalog
-python3 - "$CATALOG" "$ENV_FILE" <<'PYEOF'
-import json, sys, os
+# Auto-detect SF_TARGET_ORG from sf CLI if not already set
+if [[ -z "${SF_TARGET_ORG:-}" ]] && command -v sf &>/dev/null; then
+  _sf_org=$(sf org list --json 2>/dev/null | python3 -c "
+import json,sys
+try:
+    d=json.load(sys.stdin)
+    orgs=d.get('result',{}).get('nonScratchOrgs',[])
+    default=next((o['username'] for o in orgs if o.get('isDefaultUsername')),None)
+    if default: print(default)
+except: pass
+" 2>/dev/null || true)
+  if [[ -n "${_sf_org:-}" ]]; then
+    echo "  Auto-detected SF_TARGET_ORG: $_sf_org"
+    echo "SF_TARGET_ORG=\"$_sf_org\"" >> "$ENV_FILE"
+    set -a; source "$ENV_FILE" 2>/dev/null; set +a
+  fi
+fi
+
+# Write Python to a temp file so stdin stays connected to the terminal
+# (heredoc-based python3 - <<'EOF' consumes stdin, breaking /dev/tty prompts)
+_step4_py=$(mktemp /tmp/occ_step4_XXXXX)
+cat > "$_step4_py" << 'PYEOF'
+import json, sys, os, getpass
 
 catalog = json.load(open(sys.argv[1]))
 env_file = sys.argv[2]
+selected = set(sys.argv[3:])
 
-# Load existing env
+# Load existing env (file first, then shell env as fallback)
 env = {}
 if os.path.exists(env_file):
     with open(env_file) as f:
@@ -111,155 +435,318 @@ if os.path.exists(env_file):
             if line and not line.startswith('#') and '=' in line:
                 k, v = line.split('=', 1)
                 env[k.strip()] = v.strip().strip('"')
+# Also pick up env vars from shell (e.g. sourced .env from previous steps)
+for k, v in os.environ.items():
+    if k not in env and v.strip():
+        env[k] = v
 
-# Collect all keys from recommended servers
-for mid, m in sorted(catalog['mcpServers'].items()):
-    if not m.get('recommended', False):
-        continue
-    
-    all_keys = m.get('requiredKeys', []) + m.get('optionalKeys', [])
-    if not all_keys:
-        continue
-    
-    print(f"\n  -- {m['name']} --")
-    descriptions = m.get('keyDescriptions', {})
-    
-    for key in all_keys:
-        current = env.get(key, '')
-        if current and current not in ('', 'REPLACE_ME'):
-            print(f"  {key}: [already set]")
+if not selected:
+    print("  No MCP servers selected — skipping key collection.")
+else:
+    # Collect keys for selected servers
+    for mid, m in sorted(catalog['mcpServers'].items()):
+        if mid not in selected:
             continue
-        
-        req = '(required)' if key in m.get('requiredKeys', []) else '(optional)'
-        desc = descriptions.get(key, '')
-        if desc:
-            print(f"  {key} {req} — {desc}")
-        else:
-            print(f"  {key} {req}")
-        
-        val = input(f"    Value: ").strip()
-        if val:
-            env[key] = val
 
-# Write env file
-with open(env_file, 'w') as f:
-    f.write("# [Your Company] MCP Server Configuration\n")
-    f.write(f"# Generated by setup.sh on {__import__('datetime').date.today()}\n")
-    f.write("# NEVER commit this file.\n\n")
-    for k, v in sorted(env.items()):
-        f.write(f'{k}="{v}"\n')
-os.chmod(env_file, 0o600)
-print(f"\n  Written to {env_file}")
+        all_keys = m.get('requiredKeys', []) + m.get('optionalKeys', [])
+        if not all_keys:
+            continue
+
+        # If this server has a derived token already set, skip credential prompts
+        # e.g. ClickUp: CLICKUP_API_TOKEN already set means OAuth was already completed
+        derived_token = m.get('derivedToken', '')
+        if derived_token and env.get(derived_token, '').strip() not in ('', 'REPLACE_ME'):
+            print(f"\n  -- {m['name']} --")
+            print(f"  {derived_token}: [already set — skipping setup]")
+            continue
+
+        print(f"\n  -- {m['name']} --")
+        instructions = m.get('setupInstructions', [])
+        if instructions:
+            print(f"  Setup:")
+            for step in instructions:
+                print(f"    • {step}")
+            print()
+        descriptions = m.get('keyDescriptions', {})
+
+        for key in all_keys:
+            current = env.get(key, '')
+            if current and current not in ('', 'REPLACE_ME'):
+                print(f"  {key}: [already set]")
+                continue
+
+            if key in m.get('optionalKeys', []):
+                # Optional keys are resolved at runtime by the server command — never prompt
+                print(f"  {key}: [optional — auto-resolved at runtime]")
+                continue
+
+            desc = descriptions.get(key, '')
+            if desc:
+                print(f"  {key} (required) — {desc}")
+            else:
+                print(f"  {key} (required)")
+
+            try:
+                val = getpass.getpass("    Value: ").strip()
+            except Exception:
+                val = ''
+                print("  (could not read input — skipping)")
+            if val:
+                env[key] = val
+
+# Always write env file (preserves existing keys)
+try:
+    with open(env_file, 'w') as f:
+        f.write("# [Your Company] MCP Server Configuration\n")
+        f.write(f"# Generated by setup.sh on {__import__('datetime').date.today()}\n")
+        f.write("# NEVER commit this file.\n\n")
+        for k, v in sorted(env.items()):
+            f.write(f'{k}="{v}"\n')
+    os.chmod(env_file, 0o600)
+    print(f"\n  Written to {env_file}")
+except OSError as e:
+    print(f"\n  ERROR: Could not write {env_file}: {e}", file=sys.stderr)
+    sys.exit(1)
 PYEOF
+
+set +e
+python3 "$_step4_py" "$CATALOG" "$ENV_FILE" "${SELECTED_MCPS[@]+"${SELECTED_MCPS[@]}"}"
+_step4_rc=$?
+set -e
+rm -f "$_step4_py"
+if [[ $_step4_rc -ne 0 ]]; then
+  step_fail "API key collection" "Python exited with code $_step4_rc"
+  exit 1
+else
+  step_ok "API keys collected"
+fi
 
 # Re-source env after collecting keys
 set -a; source "$ENV_FILE" 2>/dev/null; set +a
 
-# ── Step 4: Generate .mcp.json from catalog ─────────────────────
-echo ""
-echo "[4/5] Generating .mcp.json from catalog..."
+# ── ClickUp OAuth flow (runs if CLIENT_ID/SECRET collected above) ─
+_clickup_oauth=false
+for _m in "${SELECTED_MCPS[@]+"${SELECTED_MCPS[@]}"}"; do
+  [[ "$_m" == "clickup" ]] && _clickup_oauth=true && break
+done
 
-python3 - "$CATALOG" "$MCP_FILE" "$ENV_FILE" <<'PYEOF'
-import json, sys, os
+if [[ "$_clickup_oauth" == "true" ]] \
+    && [[ -n "${CLICKUP_CLIENT_ID:-}" ]] \
+    && [[ -n "${CLICKUP_CLIENT_SECRET:-}" ]] \
+    && [[ -z "${CLICKUP_API_TOKEN:-}" ]]; then
+  echo ""
+  echo "  -- ClickUp OAuth --"
+  echo "  Opening browser — authorize '[Your Company] Claude Integration' in ClickUp..."
+  _cu_url="https://app.clickup.com/api?client_id=${CLICKUP_CLIENT_ID}&redirect_uri=http://localhost:3456"
+  if [[ "$(uname)" == "Darwin" ]]; then
+    open "$_cu_url"
+  else
+    xdg-open "$_cu_url" 2>/dev/null || printf "  Please open in your browser:\n  %s\n" "$_cu_url"
+  fi
+  echo "  Waiting for callback on localhost:3456 (approve in your browser)..."
 
-catalog = json.load(open(sys.argv[1]))
-mcp_file = sys.argv[2]
-env_file = sys.argv[3]
+  # Write OAuth callback server to a temp file — avoids heredoc nesting issues
+  _cu_py=$(mktemp /tmp/cu_oauth_XXXXX)
+  cat > "$_cu_py" << 'CUEOF'
+import http.server, urllib.parse
+code = [None]
 
-# Load env
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        p = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        code[0] = p.get('code', [None])[0]
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b'<html><body style="font-family:sans-serif;padding:40px">'
+                         b'<h2>Authorized!</h2><p>Return to your terminal.</p></body></html>')
+    def log_message(self, *a):
+        pass
+
+http.server.HTTPServer(('localhost', 3456), H).handle_request()
+if code[0]:
+    print(code[0])
+CUEOF
+  _cu_code=$(python3 "$_cu_py" 2>/dev/null)
+  rm -f "$_cu_py"
+
+  if [[ -n "$_cu_code" ]]; then
+    echo "  Got authorization code. Exchanging for access token..."
+    _cu_resp=$(curl -s -X POST "https://api.clickup.com/api/v2/oauth/token" \
+      -H "Content-Type: application/json" \
+      -d "{\"client_id\":\"${CLICKUP_CLIENT_ID}\",\"client_secret\":\"${CLICKUP_CLIENT_SECRET}\",\"code\":\"${_cu_code}\"}")
+    _cu_token=$(echo "$_cu_resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('access_token',''))" 2>/dev/null || true)
+
+    if [[ -n "${_cu_token:-}" ]]; then
+      echo "  ✓ ClickUp OAuth complete — token saved"
+      # Append CLICKUP_API_TOKEN to .env preserving existing keys
+      python3 - "$ENV_FILE" "$_cu_token" << 'CUENVEOF'
+import sys, os
+env_file, token = sys.argv[1], sys.argv[2]
 env = {}
 if os.path.exists(env_file):
-    with open(env_file) as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith('#') and '=' in line:
-                k, v = line.split('=', 1)
-                env[k.strip()] = v.strip().strip('"')
+    for line in open(env_file):
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            k, v = line.split('=', 1)
+            env[k.strip()] = v.strip().strip('"')
+env['CLICKUP_API_TOKEN'] = token
+with open(env_file, 'w') as fh:
+    fh.write("# [Your Company] MCP Server Configuration\n# NEVER commit this file.\n\n")
+    for k, v in sorted(env.items()):
+        fh.write(f'{k}="{v}"\n')
+os.chmod(env_file, 0o600)
+CUENVEOF
+      set -a; source "$ENV_FILE" 2>/dev/null; set +a
+    else
+      printf "  ✗ Token exchange failed. Response: %s\n" "$_cu_resp"
+      echo "    Add CLICKUP_API_TOKEN to .env manually, or email [admin-email@your-domain.com]."
+    fi
+  else
+    echo "  ✗ No authorization code received from browser."
+    echo "    Re-run setup, or add CLICKUP_API_TOKEN to .env manually."
+  fi
+elif [[ "$_clickup_oauth" == "true" ]] && [[ -n "${CLICKUP_API_TOKEN:-}" ]]; then
+  echo "  CLICKUP_API_TOKEN already set — skipping OAuth flow."
+fi
 
-# Load existing mcp.json to preserve non-catalog entries
-if os.path.exists(mcp_file):
-    mcp = json.load(open(mcp_file))
-else:
-    mcp = {"mcpServers": {}}
-
-# Build recommended servers from catalog
-enabled = []
-for mid, m in catalog['mcpServers'].items():
-    if not m.get('recommended', False):
-        continue
-    
-    entry = {"command": m["command"]}
-    
-    # Substitute env vars in args
-    args = []
-    for arg in m["args"]:
-        for k, v in env.items():
-            arg = arg.replace(f"${{{k}}}", v)
-        args.append(arg)
-    entry["args"] = args
-    
-    # Build env block
-    srv_env = dict(m.get("env", {}))
-    for key in m.get("requiredKeys", []) + m.get("optionalKeys", []):
-        if key in env and env[key]:
-            srv_env[key] = env[key]
-    if srv_env:
-        entry["env"] = srv_env
-    
-    mcp["mcpServers"][mid] = entry
-    enabled.append(m["name"])
-
-with open(mcp_file, 'w') as f:
-    json.dump(mcp, f, indent=2)
-    f.write('\n')
-os.chmod(mcp_file, 0o600)
-
-print(f"  Configured {len(enabled)} MCP servers: {', '.join(enabled)}")
-print(f"  Written to {mcp_file}")
-PYEOF
-
-# ── Step 5: Update settings with enabled MCP servers ────────────
+# ── Step 5: Register MCP servers via claude mcp add ─────────────
 echo ""
-echo "[5/6] Updating settings.local.json..."
+echo "[5/8] Registering MCP servers..."
 
-python3 - "$CATALOG" "$SETTINGS" <<'PYEOF'
+set +e
+python3 - "$CATALOG" "${SELECTED_MCPS[@]+"${SELECTED_MCPS[@]}"}" <<'PYEOF'
+import json, sys, subprocess
+
+catalog = json.load(open(sys.argv[1]))
+selected = set(sys.argv[2:])
+
+if not selected:
+    print("  No MCP servers selected — skipping.")
+    sys.exit(0)
+
+configured = []
+failed = []
+
+for mid, m in catalog['mcpServers'].items():
+    if mid not in selected:
+        continue
+
+    # Remove existing entry (idempotent re-runs)
+    subprocess.run(
+        ["claude", "mcp", "remove", mid, "-s", "user"],
+        capture_output=True
+    )
+
+    # Non-secret static env → passed as -e flags (stored in ~/.claude.json, not secret)
+    env_flags = []
+    for key, val in m.get("env", {}).items():
+        env_flags += ["-e", f"{key}={val}"]
+
+    # Secrets stay in ~/.claude/.env — loaded at runtime by the bash wrapper
+    cmd = [
+        "claude", "mcp", "add", mid,
+        "-s", "user",
+        *env_flags,
+        "--",
+        m["command"],
+        *m["args"]
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode == 0:
+        configured.append(m["name"])
+    else:
+        failed.append(f"{m['name']}: {result.stderr.strip()}")
+
+if configured:
+    print(f"  Registered {len(configured)} MCP servers: {', '.join(configured)}")
+for msg in failed:
+    print(f"  ERROR: {msg}")
+if not configured and not failed:
+    print("  No MCP servers configured.")
+print("  Registered globally via 'claude mcp add -s user' → ~/.claude.json")
+if failed:
+    sys.exit(1)
+PYEOF
+_step5_rc=$?
+set -e
+
+if [[ $_step5_rc -eq 0 ]]; then
+  step_ok "MCP servers registered"
+else
+  step_warn "MCP registration" "some servers failed (see above)"
+fi
+
+# ── Step 6: Update global settings.json ─────────────────────────
+echo ""
+echo "[6/8] Updating ~/.claude/settings.json..."
+
+if [[ ! -f "$SETTINGS" ]]; then
+  echo '{}' > "$SETTINGS"
+fi
+
+set +e
+python3 - "$CATALOG" "$SETTINGS" "${SELECTED_PLUGINS[@]+"${SELECTED_PLUGINS[@]}"}" "${SELECTED_MCPS[@]+"${SELECTED_MCPS[@]}"}" <<'PYEOF'
 import json, sys
 
 catalog = json.load(open(sys.argv[1]))
 settings_file = sys.argv[2]
 
-settings = json.load(open(settings_file))
+all_plugin_ids = set(catalog['plugins'].keys())
+all_mcp_ids = set(catalog['mcpServers'].keys())
 
-# Enable recommended MCP servers
-enabled = []
-for mid, m in catalog['mcpServers'].items():
-    if m.get('recommended', False):
-        enabled.append(mid)
+selected_plugins = []
+selected_mcps = []
+for arg in sys.argv[3:]:
+    if arg in all_plugin_ids:
+        selected_plugins.append(arg)
+    elif arg in all_mcp_ids:
+        selected_mcps.append(arg)
 
-settings['enabledMcpjsonServers'] = enabled
+try:
+    settings = json.load(open(settings_file))
+except (FileNotFoundError, json.JSONDecodeError):
+    settings = {}
+
+# Update plugins — set all known, enable only selected
+plugins = settings.get("enabledPlugins", {})
+for pid in catalog['plugins']:
+    plugins[pid] = pid in selected_plugins
+settings["enabledPlugins"] = plugins
+
+# Update MCP servers
+settings['enabledMcpjsonServers'] = selected_mcps
 
 with open(settings_file, 'w') as f:
     json.dump(settings, f, indent=2)
     f.write('\n')
 
-print(f"  Enabled MCP servers in settings: {', '.join(enabled)}")
+print(f"  Plugins enabled: {len(selected_plugins)}")
+print(f"  MCP servers enabled: {len(selected_mcps)}")
 PYEOF
+_step6_rc=$?
+set -e
 
-# ── Step 6: Install catalog announcement hook ───────────────────
+if [[ $_step6_rc -eq 0 ]]; then
+  step_ok "Settings updated"
+else
+  step_fail "Settings update" "could not write settings.json"
+fi
+
+# ── Step 7: Install catalog announcement hook ───────────────────
 echo ""
-echo "[6/6] Installing catalog announcement hook..."
+echo "[7/8] Installing catalog announcement hook..."
 
 HOOK_SRC="$SCRIPT_DIR/hooks/your-session-start.sh"
-HOOK_DEST="$HOME/.claude/hooks/your-session-start.sh"
-GLOBAL_SETTINGS="$HOME/.claude/settings.json"
+HOOK_DEST="$CLAUDE_DIR/hooks/your-session-start.sh"
 
 if [[ -f "$HOOK_SRC" ]]; then
-  mkdir -p "$HOME/.claude/hooks"
+  mkdir -p "$CLAUDE_DIR/hooks"
   cp "$HOOK_SRC" "$HOOK_DEST"
   chmod +x "$HOOK_DEST"
 
   # Register in global settings.json
-  python3 - "$GLOBAL_SETTINGS" "$HOOK_DEST" <<'PYEOF'
+  python3 - "$SETTINGS" "$HOOK_DEST" <<'PYEOF'
 import json, sys, os
 
 settings_file, hook_path = sys.argv[1], sys.argv[2]
@@ -272,9 +759,7 @@ except (json.JSONDecodeError, FileNotFoundError):
 hooks = settings.setdefault("hooks", {})
 user_prompt_hooks = hooks.setdefault("UserPromptSubmit", [])
 
-# Check if already registered
 hook_command = hook_path
-# Also clean up any old catalog-announce.sh registration
 old_hook = hook_command.replace("your-session-start.sh", "your-catalog-announce.sh")
 
 already_registered = any(
@@ -303,35 +788,55 @@ else:
     print(f"  Hook already registered.")
 PYEOF
   echo "  Installed to $HOOK_DEST"
+  step_ok "Session hook installed"
 else
-  echo "  Hook script not found at $HOOK_SRC — skipping"
+  step_warn "Session hook" "source not found at $HOOK_SRC"
 fi
 
-# ── Verify .gitignore ───────────────────────────────────────────
-GITIGNORE="$PROJECT_DIR/.gitignore"
-if [[ -f "$GITIGNORE" ]]; then
-  for pattern in ".env" ".mcp.json" ".claude/memory/" ".claude/settings.local.json"; do
-    if ! grep -qF "$pattern" "$GITIGNORE" 2>/dev/null; then
-      echo "$pattern" >> "$GITIGNORE"
-      echo "  Added $pattern to .gitignore"
+# ── Step 8: Multi-system workflow check ─────────────────────────
+echo ""
+echo "[8/8] Multi-system workflow check"
+echo "  This feature monitors your repos for git drift and syncs Claude memory"
+echo "  across devices via a cloud storage symlink (OneDrive, Dropbox, etc.)."
+echo ""
+
+MULTI_CHECK_CONFIG="$HOME/.claude/multi-system-check.json"
+
+if [[ -f "$MULTI_CHECK_CONFIG" ]]; then
+  echo "  Already configured. To reconfigure: ~/claude-config/scripts/setup-multi-system.sh"
+  step_ok "Multi-system check (already configured)"
+else
+  read -rp "  Do you work on this project across multiple computers? [Y/n] " MULTI_ANSWER
+  if [[ "$(echo "$MULTI_ANSWER" | tr '[:upper:]' '[:lower:]')" == "n" ]]; then
+    echo '{"enabled": false}' > "$MULTI_CHECK_CONFIG"
+    echo "  Skipped. To enable later: ~/claude-config/scripts/setup-multi-system.sh"
+  else
+    echo ""
+    if bash "$SCRIPT_DIR/scripts/setup-multi-system.sh"; then
+      step_ok "Multi-system check configured"
+    else
+      step_warn "Multi-system check" "setup did not complete"
     fi
-  done
+  fi
 fi
 
 # ── Done ────────────────────────────────────────────────────────
 echo ""
 echo "=== Setup Complete ==="
 echo ""
-echo "Files created/updated:"
-echo "  .env                         — API keys (chmod 600, gitignored)"
-echo "  .mcp.json                    — MCP server config (chmod 600, gitignored)"
-echo "  .claude/settings.local.json  — Plugin and MCP toggles"
-echo "  .claude/personas/            — Persona profiles"
-echo "  .claude/commands/            — Slash commands"
+echo "Files created/updated (all global — no project path needed):"
+echo "  ~/.claude/.env               — API keys (chmod 600)"
+echo "  ~/.claude.json               — MCP server registrations (via claude mcp add)"
+echo "  ~/.claude/settings.json      — Plugin and MCP toggles"
+echo "  ~/.claude/personas/          — Persona profiles (all sessions)"
+echo "  ~/.claude/commands/          — Slash commands (all sessions)"
 echo ""
 echo "Next steps:"
-echo "  1. Restart Claude Code to load changes"
-echo "  2. Test: run /stan-docs or /holly-analyze"
-echo "  3. Manage plugins/MCPs later: ~/claude-config/scripts/catalog.sh ."
-echo "  4. Any REPLACE_ME values need real keys — check catalog.json for sources"
-echo "  5. New catalog tools will be announced automatically at next session start"
+echo "  1. Any REPLACE_ME values need real keys — check catalog.json for sources"
+echo "  2. Add or remove tools anytime: re-run this script"
+echo "  3. On additional machines: re-run this script — multi-system check links automatically"
+echo ""
+echo "╔══════════════════════════════════════════════╗"
+echo "║   ✅  Claude Code is ready to launch.        ║"
+echo "║   Restart Claude Code to apply changes.      ║"
+echo "╚══════════════════════════════════════════════╝"
