@@ -3,10 +3,12 @@
 # Usage: catalog.sh [project-dir]
 #   catalog.sh .                  # Interactive menu
 #   catalog.sh . --list           # Show current status
-#   catalog.sh . --sync           # Re-sync from latest catalog
+#   catalog.sh . --sync           # Re-sync from latest catalog + deploy
+#   catalog.sh . --deploy         # Deploy enabled MCP servers to ~/.claude.json
 #
 # Reads catalog.json from the claude-config repo (local clone or GitHub).
 # Writes to .claude/settings.local.json and .mcp.json in the project dir.
+# --deploy writes MCP server configs to ~/.claude.json (global).
 
 set -euo pipefail
 
@@ -23,6 +25,14 @@ CATALOG="$SCRIPT_DIR/catalog.json"
 SETTINGS="$PROJECT_DIR/.claude/settings.local.json"
 MCP_FILE="$PROJECT_DIR/.mcp.json"
 ENV_FILE="$PROJECT_DIR/.env"
+GLOBAL_SETTINGS="$HOME/.claude/settings.json"
+GLOBAL_MCP="$HOME/.claude.json"
+
+OCC_ROLE_FILE="$HOME/.claude/.occ-role"
+OCC_ROLE="user"
+if [[ -f "$OCC_ROLE_FILE" ]]; then
+  OCC_ROLE="$(cat "$OCC_ROLE_FILE" | tr -d '[:space:]')"
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -56,23 +66,29 @@ except: pass
 }
 
 get_enabled_mcps() {
-  if [[ -f "$SETTINGS" ]]; then
-    python3 -c "
+  python3 -c "
 import json, sys
-try:
-    d = json.load(open('$SETTINGS'))
-    for s in d.get('enabledMcpjsonServers', []):
-        print(s)
-except: pass
+seen = set()
+for path in ['$GLOBAL_SETTINGS', '$SETTINGS']:
+    try:
+        d = json.load(open(path))
+        for s in d.get('enabledMcpjsonServers', []):
+            if s not in seen:
+                seen.add(s)
+                print(s)
+    except: pass
 " 2>/dev/null
-  fi
 }
 
 catalog_plugins() {
   python3 -c "
 import json
 c = json.load(open('$CATALOG'))
+user_role = '$OCC_ROLE'
 for pid, p in sorted(c['plugins'].items(), key=lambda x: (not x[1]['recommended'], x[1]['category'], x[1]['name'])):
+    allowed = p.get('roles', ['user', 'admin'])
+    if user_role not in allowed:
+        continue
     rec = '*' if p['recommended'] else ' '
     print(f\"{rec}|{pid}|{p['name']}|{p['description']}|{p['category']}\")
 "
@@ -82,7 +98,11 @@ catalog_mcps() {
   python3 -c "
 import json
 c = json.load(open('$CATALOG'))
+user_role = '$OCC_ROLE'
 for mid, m in sorted(c['mcpServers'].items(), key=lambda x: (not x[1]['recommended'], x[1]['category'], x[1]['name'])):
+    allowed = m.get('roles', ['user', 'admin'])
+    if user_role not in allowed:
+        continue
     rec = '*' if m['recommended'] else ' '
     keys = ', '.join(m.get('requiredKeys', []))
     print(f\"{rec}|{mid}|{m['name']}|{m['description']}|{m['category']}|{keys}\")
@@ -272,7 +292,7 @@ PYEOF
 setup_mcp_keys() {
   local mid="$1"
   echo ""
-  
+
   # Get key info from catalog
   python3 - "$mid" "$CATALOG" "$ENV_FILE" "$MCP_FILE" <<'PYEOF'
 import json, sys, os
@@ -320,14 +340,20 @@ for key in all_keys:
     current = env.get(key, '')
     desc = descriptions.get(key, '')
     req_label = '(required)' if key in required else '(optional)'
-    
+
     if current and current not in ('', 'REPLACE_ME'):
         print(f"    {key}: [already set]")
     else:
         print(f"    {key} {req_label}")
         if desc:
             print(f"      Source: {desc}")
-        val = input(f"      Value: ").strip()
+        sys.stdout.write(f"      Value: ")
+        sys.stdout.flush()
+        try:
+            with open('/dev/tty') as tty:
+                val = tty.readline().strip()
+        except OSError:
+            val = ''
         if val:
             env[key] = val
             changed = True
@@ -346,7 +372,7 @@ if changed:
         mcp = json.load(open(mcp_file))
     else:
         mcp = {"mcpServers": {}}
-    
+
     # Build server entry from catalog
     entry = {"command": server["command"], "args": server["args"]}
     srv_env = dict(server.get("env", {}))
@@ -355,7 +381,7 @@ if changed:
             srv_env[key] = env[key]
     if srv_env:
         entry["env"] = srv_env
-    
+
     # Substitute variables in args
     new_args = []
     for arg in entry["args"]:
@@ -363,7 +389,7 @@ if changed:
             arg = arg.replace(f"${{{k}}}", v)
         new_args.append(arg)
     entry["args"] = new_args
-    
+
     mcp["mcpServers"][mid] = entry
     with open(mcp_file, 'w') as f:
         json.dump(mcp, f, indent=2)
@@ -373,15 +399,130 @@ if changed:
 PYEOF
 }
 
+# ── Deploy Mode ─────────────────────────────────────────────────
+
+deploy_global_mcp() {
+  python3 - "$CATALOG" "$GLOBAL_SETTINGS" "$SETTINGS" "$GLOBAL_MCP" <<'PYEOF'
+import json, sys, os
+
+catalog_file = sys.argv[1]
+global_settings_file = sys.argv[2]
+local_settings_file = sys.argv[3]
+global_mcp_file = sys.argv[4]
+
+catalog = json.load(open(catalog_file))
+servers = catalog.get('mcpServers', {})
+
+enabled = set()
+for path in [global_settings_file, local_settings_file]:
+    try:
+        d = json.load(open(path))
+        for s in d.get('enabledMcpjsonServers', []):
+            enabled.add(s)
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        pass
+
+if not enabled:
+    print("  No enabled MCP servers found in settings. Nothing to deploy.")
+    sys.exit(0)
+
+try:
+    with open(global_mcp_file) as f:
+        global_mcp = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError, ValueError):
+    global_mcp = {}
+
+if 'mcpServers' not in global_mcp:
+    global_mcp['mcpServers'] = {}
+
+existing_keys = set(global_mcp['mcpServers'].keys())
+catalog_keys = set(servers.keys())
+
+added = []
+updated = []
+skipped_missing = []
+warned_keys = []
+
+for mid in sorted(enabled):
+    if mid not in servers:
+        skipped_missing.append(mid)
+        continue
+
+    srv = servers[mid]
+    entry = {
+        "type": "stdio",
+        "command": srv["command"],
+        "args": list(srv["args"]),
+    }
+    srv_env = dict(srv.get("env", {}))
+    if srv_env:
+        entry["env"] = srv_env
+    else:
+        entry["env"] = {}
+
+    missing_keys = []
+    for key in srv.get("requiredKeys", []):
+        val = os.environ.get(key, "")
+        if not val:
+            missing_keys.append(key)
+    if missing_keys:
+        warned_keys.append((mid, missing_keys))
+
+    if mid in existing_keys:
+        if global_mcp['mcpServers'][mid] != entry:
+            updated.append(mid)
+        global_mcp['mcpServers'][mid] = entry
+    else:
+        added.append(mid)
+        global_mcp['mcpServers'][mid] = entry
+
+removed = []
+for mid in list(global_mcp['mcpServers'].keys()):
+    if mid in catalog_keys and mid not in enabled:
+        del global_mcp['mcpServers'][mid]
+        removed.append(mid)
+
+with open(global_mcp_file, 'w') as f:
+    json.dump(global_mcp, f, indent=2)
+    f.write('\n')
+
+print("  Deploy summary:")
+if added:
+    print("    Added:   " + ", ".join(added))
+if updated:
+    print("    Updated: " + ", ".join(updated))
+if removed:
+    print("    Removed: " + ", ".join(removed))
+if not added and not updated and not removed:
+    print("    No changes — global config already matches.")
+if skipped_missing:
+    print("    Skipped (not in catalog): " + ", ".join(skipped_missing))
+if warned_keys:
+    print("")
+    for mid, keys in warned_keys:
+        print("    \033[0;33mWarning:\033[0m " + mid + " missing env keys: " + ", ".join(keys))
+
+print("  Deployed to: " + global_mcp_file)
+PYEOF
+}
+
 # ── Main ────────────────────────────────────────────────────────
 
 case "${ACTION}" in
   --list|-l)
     list_status
     ;;
+  --deploy|-d)
+    echo "Deploying enabled MCP servers to global config..."
+    deploy_global_mcp
+    ;;
   --sync|-s)
     echo "Syncing catalog from GitHub..."
     git -C "$SCRIPT_DIR" pull --quiet 2>/dev/null || echo "  Warning: Could not pull latest catalog"
+    echo ""
+    echo "Deploying enabled MCP servers to global config..."
+    deploy_global_mcp
+    echo ""
     list_status
     ;;
   *)
@@ -415,7 +556,7 @@ case "${ACTION}" in
           git -C "$SCRIPT_DIR" pull --quiet 2>/dev/null || echo "  Warning: Could not pull"
           echo "  Done."
           ;;
-        q|Q) 
+        q|Q)
           echo ""
           echo "  Restart Claude Code to apply changes."
           echo ""
