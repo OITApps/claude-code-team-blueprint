@@ -1,4 +1,4 @@
-# Claude Code Team Blueprint
+# Claude Code Team Commander
 
 **A complete playbook for building a shared Claude Code configuration for your company.**
 
