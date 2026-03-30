@@ -2,6 +2,7 @@
   "$schema": "https://[your-github-org].github.io/claude-config/catalog.schema.json",
   "_description": "[Your Company] Plugin & MCP Server Catalog. Edit this file to add/remove available tools for the team.",
   "_announcement_convention": "Add 'announcement_id': '{key}-v1' to any NEW entry you want announced to users at next session start. Existing entries without this field are never announced (assumed already known). Bump to '-v2' to re-announce after major changes.",
+  "_roi_convention": "Each ROI entry supports 'hrs_basis': 'per_user' (default) multiplies hrs_saved_per_week by user_count; 'team_total' means hrs_saved_per_week is already a team aggregate and should not be multiplied.",
   "plugins": {
     "superpowers@claude-plugins-official": {
       "name": "Superpowers",
@@ -10,6 +11,11 @@
       "category": "workflow",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Plan and implement the Lead_Hot_Escalation flow changes using TDD",
+        "Debug why the Case_Metrics_Updater flow is failing on certain records",
+        "Review the latest Apex class changes before merging to main"
       ]
     },
     "feature-dev@claude-plugins-official": {
@@ -19,6 +25,10 @@
       "category": "workflow",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Build a new Apex trigger to auto-calculate retention scores on Account",
+        "Add a Management_Flag_Reason picklist field to the Case object"
       ]
     },
     "commit-commands@claude-plugins-official": {
@@ -28,6 +38,10 @@
       "category": "git",
       "setupInstructions": [
         "No setup required. Uses your existing git config."
+      ],
+      "promptExamples": [
+        "Commit and push my flow changes with a descriptive message",
+        "Create a PR for the Lead automation updates I just built"
       ]
     },
     "code-review@claude-plugins-official": {
@@ -37,6 +51,10 @@
       "category": "quality",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Review the sendWebhookNotification class for security vulnerabilities",
+        "Review the ClientRetentionTracking changes before deploying to production"
       ]
     },
     "code-simplifier@claude-plugins-official": {
@@ -46,15 +64,23 @@
       "category": "quality",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Simplify the PerformanceTrackingCalculator class to reduce complexity",
+        "Refactor the Account_Retention_Metrics_Calculator flow for readability"
       ]
     },
     "security-guidance@claude-plugins-official": {
       "name": "Security Guidance",
       "description": "Security audits, vulnerability scanning, secure coding patterns",
-      "recommended": true,
+      "recommended": false,
       "category": "quality",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Scan the Apex classes for SOQL injection vulnerabilities",
+        "Audit the MCP config for hardcoded credentials or secrets"
       ]
     },
     "claude-md-management@claude-plugins-official": {
@@ -64,6 +90,10 @@
       "category": "workflow",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Update the Salesforce CLAUDE.md with today's session learnings",
+        "Audit all CLAUDE.md files in the project for stale or missing patterns"
       ]
     },
     "claude-code-setup@claude-plugins-official": {
@@ -73,6 +103,10 @@
       "category": "workflow",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Analyze the flow-fix-project and recommend Claude Code automations",
+        "Set up hooks and slash commands for the ClientRetentionTracking project"
       ]
     },
     "skill-creator@claude-plugins-official": {
@@ -82,16 +116,24 @@
       "category": "workflow",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Create a new skill for reviewing Salesforce flow XML before deploying",
+        "Build a skill that generates our weekly team announcement draft"
       ]
     },
     "playwright@claude-plugins-official": {
       "name": "Playwright",
       "description": "Browser automation for testing and web scraping",
-      "recommended": true,
+      "recommended": false,
       "category": "tools",
       "setupInstructions": [
         "No API key required.",
         "May need to install browsers: npx playwright install chromium"
+      ],
+      "promptExamples": [
+        "Take a screenshot of the Salesforce retention dashboard for the weekly report",
+        "Automate login and navigation on the Yealink YMCS portal"
       ]
     },
     "context7@claude-plugins-official": {
@@ -101,6 +143,10 @@
       "category": "tools",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Get the latest Salesforce Apex REST API documentation",
+        "Find current MCP SDK documentation for building new tool handlers"
       ]
     },
     "pinecone@claude-plugins-official": {
@@ -109,20 +155,15 @@
       "recommended": false,
       "category": "tools",
       "setupInstructions": [
-        "Email [admin-email@your-domain.com] with subject 'API Key Request: Pinecone'",
-        "Include your name and role",
-        "You'll receive the PINECONE_API_KEY via secure channel"
-      ]
-    },
-    "Notion@claude-plugins-official": {
-      "name": "Notion",
-      "description": "Search, create, and manage Notion pages and databases",
-      "recommended": false,
-      "category": "integrations",
-      "setupInstructions": [
-        "Email [admin-email@your-domain.com] with subject 'API Key Request: Notion'",
-        "Include your name and role",
-        "You'll receive the Notion integration token and sharing instructions"
+        "1. Go to https://app.pinecone.io",
+        "2. Sign in or create an account",
+        "3. Go to API Keys in the left sidebar",
+        "4. Click 'Create API key', copy it",
+        "5. Paste the key when the setup script prompts for PINECONE_API_KEY"
+      ],
+      "promptExamples": [
+        "Search the knowledge base for similar porting-related support cases",
+        "Find articles about [Platform API] trunk configuration"
       ]
     },
     "frontend-design@claude-plugins-official": {
@@ -132,6 +173,10 @@
       "category": "development",
       "setupInstructions": [
         "No setup required. Enabled automatically."
+      ],
+      "promptExamples": [
+        "Build a responsive retention dashboard component for Salesforce Lightning",
+        "Design a polished performance tracking UI for the team home page"
       ]
     },
     "figma@claude-plugins-official": {
@@ -140,8 +185,12 @@
       "recommended": false,
       "category": "development",
       "setupInstructions": [
-        "Requires Figma MCP server connection.",
-        "See Figma plugin docs for setup."
+        "Requires the Figma MCP server plugin to be installed and connected.",
+        "See https://help.figma.com/hc/en-us/articles/32132100718871-Guide-to-the-Dev-Mode-MCP-Server for setup."
+      ],
+      "promptExamples": [
+        "Implement the new client dashboard layout from the Figma mockup",
+        "Recreate the retention scorecard design from our Figma spec"
       ]
     },
     "semgrep@claude-plugins-official": {
@@ -152,6 +201,10 @@
       "setupInstructions": [
         "Install Semgrep: pip install semgrep",
         "Optional: semgrep login for pro rules"
+      ],
+      "promptExamples": [
+        "Run a SAST scan on the Apex classes for common security vulnerabilities",
+        "Check the LWC components for XSS risks before deploying"
       ]
     },
     "firecrawl@claude-plugins-official": {
@@ -162,7 +215,11 @@
       "setupInstructions": [
         "Go to https://firecrawl.dev and create an account",
         "Navigate to API Keys and copy your key",
-        "Set as FIRECRAWL_API_KEY in your .env"
+        "Paste the key when the setup script prompts for FIRECRAWL_API_KEY"
+      ],
+      "promptExamples": [
+        "Scrape the [Platform API] developer docs for our internal API reference",
+        "Pull the latest Yealink firmware release notes from their support site"
       ]
     },
     "supabase@claude-plugins-official": {
@@ -173,7 +230,12 @@
       "setupInstructions": [
         "Go to https://supabase.com/dashboard",
         "Select your project > Settings > API",
-        "Copy the project URL and anon/service key"
+        "Copy the project URL and anon/service key",
+        "Paste each when the setup script prompts for SUPABASE_URL and SUPABASE_KEY"
+      ],
+      "promptExamples": [
+        "Query the CloudieBot RAG database for recent conversation threads",
+        "Check how many knowledge base embeddings are stored for the VoIP FAQ"
       ]
     },
     "vercel@claude-plugins-official": {
@@ -184,6 +246,10 @@
       "setupInstructions": [
         "Install Vercel CLI: npm install -g vercel",
         "Authenticate: vercel login"
+      ],
+      "promptExamples": [
+        "Deploy the latest CloudieMcCloudieBot updates to the staging environment",
+        "Check the build logs for the last failed Vercel deployment"
       ]
     },
     "huggingface-skills@claude-plugins-official": {
@@ -194,7 +260,41 @@
       "setupInstructions": [
         "Go to https://huggingface.co/settings/tokens",
         "Create a new token with appropriate permissions",
-        "Set as HF_TOKEN in your .env"
+        "Paste the token when the setup script prompts for HF_TOKEN"
+      ],
+      "promptExamples": [
+        "Fine-tune a classification model on our VoIP support ticket history",
+        "Evaluate a summarization model against our case resolution notes"
+      ]
+    },
+    "occ-workflows@[your-github-org]": {
+      "name": "OCC Workflows",
+      "description": "Issue worktree management — /start-issue, /start-pr, /clean-worktrees, /worktree-status",
+      "announcement_id": "occ-workflows-v1",
+      "recommended": true,
+      "alwaysEnabled": true,
+      "category": "git",
+      "setupInstructions": [
+        "No setup required. Install this plugin to enable worktree management commands.",
+        "Requires: gh CLI authenticated (gh auth status), Git 2.5+, superpowers plugin installed."
+      ]
+    },
+    "notion@claude-plugins-official": {
+      "name": "Notion",
+      "description": "Search, create, and manage Notion pages and databases",
+      "recommended": false,
+      "category": "integrations",
+      "setupInstructions": [
+        "1. Go to https://www.notion.so/my-integrations",
+        "2. Click '+ New integration', name it (e.g. 'Claude Code')",
+        "3. Select your workspace, set capabilities, click Submit",
+        "4. Copy the 'Internal Integration Secret'",
+        "5. Share any Notion pages/databases with the integration (open page > Connect to > your integration)",
+        "6. Paste the secret when prompted for NOTION_API_KEY"
+      ],
+      "promptExamples": [
+        "Search Notion for our VoIP onboarding checklist",
+        "Create a new page for the channel partner program documentation"
       ]
     }
   },
@@ -203,142 +303,205 @@
       "name": "Salesforce DX",
       "description": "Salesforce org management, metadata, data queries, Apex tests",
       "recommended": true,
+      "authType": "oauth",
+      "healthCheck": "sf org display --target-org \"$SF_TARGET_ORG\" --json 2>/dev/null | grep -q '\"connectedStatus\"'",
+      "roles": [
+        "admin"
+      ],
       "category": "core",
-      "command": "npx",
+      "command": "bash",
       "args": [
-        "-y",
-        "@salesforce/mcp",
-        "--orgs",
-        "${SF_TARGET_ORG}",
-        "--toolsets",
-        "orgs,metadata,data,users",
-        "--tools",
-        "run_apex_test",
-        "--allow-non-ga-tools"
+        "-c",
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh salesforce-dx)\"; exec npx -y @salesforce/mcp@0.27.0 --orgs \"$SF_TARGET_ORG\" --toolsets orgs,metadata,data,users --tools run_apex_test --allow-non-ga-tools"
       ],
       "requiredKeys": [
         "SF_TARGET_ORG"
       ],
       "keyDescriptions": {
-        "SF_TARGET_ORG": "Salesforce org username (e.g. [admin@your-domain.com]). Run: sf org login web"
+        "SF_TARGET_ORG": "Your Salesforce org username (e.g. you@[your-domain.com]). Run: sf org login web"
       },
       "setupInstructions": [
-        "Install Salesforce CLI: npm install -g @salesforce/cli",
-        "Authenticate: sf org login web",
-        "Verify: sf org list — copy your org username (e.g. your.email@[your-domain.com])",
-        "The setup script will ask for your org username"
+        "1. Check if Salesforce CLI is installed: sf --version",
+        "   If missing: npm install -g @salesforce/cli",
+        "2. Authenticate: sf org login web (opens a browser — log in with your [Your Company] credentials)",
+        "3. Verify: sf org list — copy your org username (e.g. you@[your-domain.com])",
+        "4. Paste that username when the setup script prompts for SF_TARGET_ORG"
       ],
-      "visibility": "public"
+      "promptExamples": [
+        "Query all open cases with SLA_Risk_Score__c > 70 in the production org",
+        "Deploy the updated Lead_Hot_Escalation flow to [admin@your-domain.com]",
+        "Run Apex tests for the LeadReplenishmentService class"
+      ],
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 4
+      },
+      "keyVaults": {
+        "SF_TARGET_ORG": "user"
+      }
     },
     "[your-kb-server]": {
       "name": "VoIP Docs ([KB Platform])",
       "description": "Search and manage [your-docs-site.com] knowledge base articles",
       "recommended": true,
+      "authType": "key",
+      "healthCheck": "curl -sf -o /dev/null -H 'Authorization: $KB_PLATFORM_API_KEY' 'https://$KB_PLATFORM_SUBDOMAIN.[kb-platform.com]/api/v3/categories'",
       "category": "core",
-      "command": "node",
+      "command": "bash",
       "args": [
-        "../[your-kb-mcp]/build/index.js"
+        "-c",
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh [your-kb-server])\"; exec node ../[your-kb-mcp]/build/index.js"
       ],
-      "env": {
-        "KB_PLATFORM_SUBDOMAIN": "[your-kb-server]"
-      },
       "requiredKeys": [
+        "KB_PLATFORM_SUBDOMAIN",
         "KB_PLATFORM_API_KEY"
       ],
       "keyDescriptions": {
-        "KB_PLATFORM_API_KEY": "[your-kb-platform.com] > Settings > API. Ask: [Admin 1], [Admin 2]"
+        "KB_PLATFORM_SUBDOMAIN": "Your [KB Platform] subdomain (e.g. [your-kb-server] for [your-kb-platform.com])",
+        "KB_PLATFORM_API_KEY": "[your-kb-platform.com] > Admin > Settings > API Key"
       },
       "setupInstructions": [
-        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
-        "Include your name and role",
-        "You'll receive the KB_PLATFORM_API_KEY via secure channel",
-        "Paste it when the setup script or catalog.sh prompts you"
+        "1. Log in to https://[your-kb-platform.com]",
+        "2. Go to Admin > Settings > API",
+        "3. Copy your API key",
+        "4. Paste it when the setup script prompts for KB_PLATFORM_API_KEY",
+        "No account yet? Contact your system administrator."
       ],
-      "visibility": "public"
+      "promptExamples": [
+        "Search [Your KB Platform] for articles about porting numbers to [Platform API]",
+        "Create a new article for the Yealink auto-provisioning setup process",
+        "Update the Log a Call guide with the latest flow changes"
+      ],
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.125,
+        "user_count": 8
+      },
+      "repo": "[YourGitHubOrg]/[your-kb-mcp]",
+      "localPath": "../[your-kb-mcp]",
+      "buildCommand": "npm run build",
+      "keyVaults": {
+        "KB_PLATFORM_API_KEY": "user",
+        "KB_PLATFORM_SUBDOMAIN": "user"
+      }
     },
     "[your-voip-server]": {
       "name": "[Platform API] VoIP",
       "description": "VoIP user management, call records, domains, billing",
       "recommended": true,
+      "authType": "key",
+      "healthCheck": "curl -sfL -o /dev/null '$PLATFORM_API_URL/ns-api/?format=json&object=subscriber&action=read&limit=1' -H 'Authorization: Bearer $PLATFORM_API_TOKEN'",
       "category": "core",
-      "command": "node",
+      "command": "bash",
       "args": [
-        "../[your-voip-server]-mcp-server/build/index.js"
+        "-c",
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh [your-voip-server])\"; exec node ../[your-voip-server]-mcp-server/build/index.js"
       ],
-      "env": {
-        "PLATFORM_API_URL": "https://[api.your-platform.com]"
-      },
       "requiredKeys": [
+        "PLATFORM_API_URL",
         "PLATFORM_API_TOKEN"
       ],
       "keyDescriptions": {
-        "PLATFORM_API_TOKEN": "[Your password manager]. Ask: [Admin 1], [Admin 2], Steven"
+        "PLATFORM_API_URL": "Your [Platform API] API base URL (e.g. https://api.yourplatform.com)",
       },
       "setupInstructions": [
-        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
-        "Include your name and role",
-        "You'll receive the PLATFORM_API_TOKEN via secure channel",
+        "This is a shared org credential — contact your system administrator to receive it.",
+        "Paste it when the setup script prompts you."
       ],
-      "visibility": "public"
+      "promptExamples": [
+        "Look up all active users on the [your-domain.com] domain",
+        "Pull inbound call records for the support queue from the last 7 days",
+        "Check the billing summary for a specific client domain"
+      ],
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 4
+      },
+      "repo": "[YourGitHubOrg]/[your-voip-server]-mcp-server",
+      "localPath": "../[your-voip-server]-mcp-server",
+      "buildCommand": "npm run build",
+      "keyVaults": {
+        "PLATFORM_API_TOKEN": "user",
+        "PLATFORM_API_URL": "user"
+      }
     },
-    "ms365": {
-      "name": "Microsoft 365",
-      "description": "Outlook email/calendar search, SharePoint, Teams messages",
+    "m365-user": {
+      "name": "Microsoft 365 (User)",
+      "description": "Mail, calendar, Teams chat/channels, OneDrive, contacts, and to-do tasks — sign in with your personal [Your Company] account",
       "recommended": true,
+      "authType": "oauth",
+      "healthCheck": "test -f ~/.ms365/user/.token-cache.json",
       "category": "core",
-      "command": "npx",
+      "command": "bash",
       "args": [
-        "-y",
-        "@softeria/ms-365-mcp-server",
-        "--org-mode"
+        "-c",
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh m365-user)\"; export MS365_MCP_TOKEN_CACHE_PATH=\"$HOME/.ms365/user/.token-cache.json\"; export MS365_MCP_SELECTED_ACCOUNT_PATH=\"$HOME/.ms365/user/.selected-account.json\"; mkdir -p \"$HOME/.ms365/user\"; exec npx -y @softeria/ms-365-mcp-server@0.45.2 --org-mode"
       ],
-      "requiredKeys": [
-        "MS365_MCP_CLIENT_ID",
-        "MS365_MCP_TENANT_ID"
-      ],
+      "requiredKeys": [],
       "optionalKeys": [
+        "MS365_MCP_CLIENT_ID",
+        "MS365_MCP_TENANT_ID",
         "MS365_MCP_CLIENT_SECRET"
       ],
       "keyDescriptions": {
-        "MS365_MCP_CLIENT_ID": "Azure Portal > App Registrations > '[Your Company] MCP'. Ask: [Admin 1], [Admin 2]",
-        "MS365_MCP_TENANT_ID": "Azure Portal > App Registrations > '[Your Company] MCP'. Ask: [Admin 1], [Admin 2]",
-        "MS365_MCP_CLIENT_SECRET": "Azure Portal > App Registrations > Certificates. Ask: Ray"
+        "MS365_MCP_CLIENT_ID": "Only needed for custom Azure AD app. Default built-in app works for most users.",
+        "MS365_MCP_TENANT_ID": "Only needed for custom Azure AD app. Default built-in app works for most users.",
+        "MS365_MCP_CLIENT_SECRET": "Only needed for custom Azure AD app. Default built-in app works for most users."
       },
       "setupInstructions": [
-        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
-        "Include your name and role",
-        "You'll receive MS365_MCP_CLIENT_ID, MS365_MCP_TENANT_ID, and MS365_MCP_CLIENT_SECRET",
-        "Paste each when the setup script or catalog.sh prompts you"
+        "No API keys required — uses OAuth device code flow.",
+        "1. After setup, start a Claude session and call the m365-user 'login' tool",
+        "2. You'll get a URL and a code — open the URL in your browser",
+        "3. Sign in with your personal [Your Company] account (e.g. [admin@your-domain.com])",
+        "4. Call the 'verify-login' tool to confirm",
+        "Tokens are stored at ~/.ms365/user/ (isolated from admin)."
       ],
-      "visibility": "public"
+      "promptExamples": [
+        "Find all unread emails about porting requests received this week",
+        "Check my calendar for availability before scheduling a production deployment",
+        "Show my Teams messages from the support channel today"
+      ],
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.2,
+        "user_count": 16,
+        "_note": "Mail, calendar, Teams, OneDrive, contacts, to-do — daily use across all staff"
+      },
+      "keyVaults": {
+        "MS365_MCP_CLIENT_ID": "user",
+        "MS365_MCP_TENANT_ID": "user",
+        "MS365_MCP_CLIENT_SECRET": "user"
+      }
     },
     "github": {
       "name": "GitHub",
       "description": "Repository management, issues, PRs, branch protection, Actions, and GitHub Projects — without dropping to gh CLI",
       "announcement_id": "github-v1",
       "recommended": true,
+      "authType": "oauth",
+      "healthCheck": "gh auth status 2>/dev/null",
       "category": "core",
-      "command": "npx",
+      "command": "bash",
       "args": [
-        "-y",
-        "@modelcontextprotocol/server-github"
+        "-c",
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh github)\"; export GITHUB_PERSONAL_ACCESS_TOKEN=\"${GITHUB_PERSONAL_ACCESS_TOKEN:-$(gh auth token 2>/dev/null)}\"; exec npx -y @modelcontextprotocol/server-github@2025.4.8"
       ],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_PERSONAL_ACCESS_TOKEN}"
-      },
-      "requiredKeys": [
-        "GITHUB_PERSONAL_ACCESS_TOKEN"
-      ],
+      "env": {},
+      "requiredKeys": [],
       "keyDescriptions": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "github.com/settings/tokens — Classic token. Required scopes: repo, read:org, project"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "Only needed if 'gh' CLI is not installed or authenticated. github.com/settings/tokens — Classic token, scopes: repo, read:org, project"
       },
       "setupInstructions": [
-        "Go to https://github.com/settings/tokens",
-        "Click 'Generate new token (classic)'",
-        "Set expiration (recommend 1 year)",
-        "Check these scopes: repo (full), read:org, project",
-        "Copy the token — it won't be shown again",
-        "Paste it when prompted for GITHUB_PERSONAL_ACCESS_TOKEN"
+        "If 'gh' CLI is installed and authenticated (gh auth login), no token needed — it's pulled automatically.",
+        "Otherwise: go to https://github.com/settings/tokens, generate a classic token.",
+        "Required scopes: repo (full), read:org, project",
+        "Copy the token and paste it when prompted for GITHUB_PERSONAL_ACCESS_TOKEN"
       ],
       "promptExamples": [
         "Create a GitHub issue for [description] and label it blueprint",
@@ -346,60 +509,56 @@
         "Close issue #5 and add a comment with what was done",
         "Check the status of our latest GitHub Actions run"
       ],
-      "visibility": "public"
-    },
-    "cognitoforms": {
-      "name": "Cognito Forms",
-      "description": "Form submissions and data via Cognito Forms API",
-      "recommended": false,
-      "category": "optional",
-      "command": "bash",
-      "args": [
-        "-c",
-        "echo 'Cognito Forms API ready'; read"
-      ],
-      "requiredKeys": [
-        "COGNITO_FORMS_API_KEY"
-      ],
-      "keyDescriptions": {
-        "COGNITO_FORMS_API_KEY": "Cognito Forms > Organization > Integrations > API Key. Ask: Ray"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 4
       },
-      "setupInstructions": [
-        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
-        "Include your name and role",
-        "You'll receive the COGNITO_FORMS_API_KEY via secure channel"
+      "optionalKeys": [
+        "GITHUB_PERSONAL_ACCESS_TOKEN"
       ],
-      "visibility": "public"
+      "keyVaults": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "user"
+      }
     },
     "n8n": {
       "name": "n8n Workflows",
       "description": "Build, list, execute, and debug n8n workflows without leaving Claude — list workflows, get node configs, trigger executions, and inspect run history",
       "announcement_id": "n8n-v1",
       "recommended": false,
+      "authType": "key",
+      "healthCheck": "curl -sf -o /dev/null -H 'X-N8N-API-KEY: $N8N_API_KEY' '$N8N_API_URL/workflows?limit=1'",
+      "roles": [
+        "admin"
+      ],
       "category": "optional",
       "command": "bash",
       "args": [
         "-c",
-        "set -a; [ -f .env ] && source .env; set +a; exec npx -y n8n-mcp"
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh n8n)\"; exec npx -y n8n-mcp@2.37.3"
       ],
       "env": {
         "MCP_MODE": "stdio",
         "LOG_LEVEL": "error",
-        "DISABLE_CONSOLE_OUTPUT": "true",
-        "N8N_API_URL": "https://[your-n8n-instance.app.n8n.cloud]"
+        "DISABLE_CONSOLE_OUTPUT": "true"
       },
       "requiredKeys": [
+        "N8N_API_URL",
         "N8N_API_KEY"
       ],
       "keyDescriptions": {
-        "N8N_API_KEY": "n8n Cloud > Settings > API > Create API Key. Ask: [Admin 1], [Admin 2]"
+        "N8N_API_URL": "Your n8n instance URL (e.g. https://your-org.app.n8n.cloud)",
+        "N8N_API_KEY": "n8n > Settings > n8n API > Create API Key"
       },
       "setupInstructions": [
         "1. Log in to https://[your-n8n-instance.app.n8n.cloud]",
-        "2. Click your avatar (bottom-right) > Settings > API",
-        "3. Click 'Create API Key', name it (e.g. Claude Code), copy the key",
-        "4. Paste it when prompted for N8N_API_KEY",
-        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]"
+        "2. Click your avatar (bottom-left) > Settings",
+        "3. Click 'n8n API' in the left sidebar",
+        "4. Click 'Create API Key', name it 'Claude Code Team Commander'",
+        "5. Leave default permissions, click Save",
+        "6. Copy the key and paste it when prompted for N8N_API_KEY",
+        "No n8n account? Request access through your manager"
       ],
       "promptExamples": [
         "List all active n8n workflows",
@@ -412,17 +571,23 @@
         "hrs_saved_per_week": 0.5,
         "user_count": 2
       },
-      "visibility": "public"
+      "visibility": "public",
+      "keyVaults": {
+        "N8N_API_KEY": "user",
+        "N8N_API_URL": "user"
+      }
     },
     "pal": {
       "name": "PAL (Multi-model)",
       "description": "Route prompts to Gemini, OpenAI, or OpenRouter models",
       "recommended": false,
+      "authType": "key",
+      "healthCheck": "test -n \"${GEMINI_API_KEY:-}${OPENAI_API_KEY:-}${OPENROUTER_API_KEY:-}\"",
       "category": "optional",
       "command": "bash",
       "args": [
         "-c",
-        "uvx --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server"
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh pal)\"; exec uvx --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git@7afc7c1cc96e23992c8f105f960132c657883bb1 pal-mcp-server"
       ],
       "requiredKeys": [],
       "optionalKeys": [
@@ -440,81 +605,237 @@
         "OPENROUTER_API_KEY": "openrouter.ai — self-service"
       },
       "setupInstructions": [
-        "Need help? Message the AI Launchpad channel in Teams, or email [admin-email@your-domain.com]",
-        "Include your name, role, and which models you need (Gemini, OpenAI, OpenRouter)",
-        "You'll receive the requested keys via secure channel",
-        "All keys are optional — PAL works with any one of them"
+        "PAL keys are self-service — all three are optional, at least one required:",
+        "Gemini:    https://aistudio.google.com/apikey > 'Create API key'",
+        "OpenAI:    https://platform.openai.com/api-keys > '+ Create new secret key'",
+        "OpenRouter: https://openrouter.ai/keys > 'Create Key'",
+        "Paste any (or all) as GEMINI_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY"
       ],
-      "visibility": "public"
-    },
-    "yealink": {
-      "name": "Yealink YMCS & RPS",
-      "description": "Yealink device management (YMCS) and remote provisioning (RPS) — list/reboot/add/remove devices, manage sites and enterprises, register MAC addresses to provisioning URLs",
-      "recommended": false,
-      "category": "optional",
-      "command": "node",
-      "args": [
-        "../yealink-mcp-server/build/index.js"
+      "promptExamples": [
+        "Use GPT-4.1 to review this Apex trigger for logic errors",
+        "Ask Gemini to generate test scenarios for the retention metrics flow",
+        "Compare model responses on this flow architecture question"
       ],
-      "env": {
-        "YMCS_API_URL": "https://api-dm.yealink.com:8445",
-        "RPS_API_URL": "https://rps.yealink.com"
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 2
       },
-      "requiredKeys": [
-        "YMCS_CLIENT_ID",
-        "YMCS_CLIENT_SECRET",
-        "RPS_USERNAME",
-        "RPS_PASSWORD"
-      ],
-      "keyDescriptions": {
-        "YMCS_CLIENT_ID": "YMCS portal > Enterprise > Open API > Client Credentials. Ask: Ray",
-        "YMCS_CLIENT_SECRET": "YMCS portal > Enterprise > Open API > Client Credentials. Ask: Ray",
-        "RPS_USERNAME": "rps.yealink.com account username. Ask: Ray",
-        "RPS_PASSWORD": "rps.yealink.com account password. Ask: Ray"
-      },
-      "setupInstructions": [
-        "── YMCS (Device Management) ──",
-        "1. Log in to YMCS at https://dm.yealink.com",
-        "2. Go to System > Integration > API",
-        "3. Click 'Edit' to generate or retrieve your Client ID and Client Secret",
-        "   NOTE: Only one set of credentials exists per enterprise — regenerating invalidates the old ones",
-        "── RPS (Remote Provisioning) ──",
-        "4. RPS accounts are issued by Yealink — you cannot self-register",
-        "5. Contact your Yealink distributor and ask them to create a VAR/reseller RPS account",
-        "   OR email rps@yealink.com directly to apply",
-        "6. Once approved, log in at https://rps.yealink.com with the issued username and password",
-        "── Add to your MCP config ──",
-        "7. Set YMCS_CLIENT_ID and YMCS_CLIENT_SECRET from step 3",
-        "8. Set RPS_USERNAME and RPS_PASSWORD from step 6"
-      ],
-      "visibility": "public"
+      "keyVaults": {
+        "GEMINI_API_KEY": "user",
+        "OPENAI_API_KEY": "user",
+        "OPENROUTER_API_KEY": "user"
+      }
     },
     "clickup": {
       "name": "ClickUp",
       "description": "Project management — tasks, spaces, lists, comments, time tracking",
       "announcement_id": "clickup-v1",
       "recommended": false,
+      "authType": "key",
+      "healthCheck": "curl -sf -o /dev/null -H 'Authorization: $CLICKUP_API_KEY' 'https://api.clickup.com/api/v2/team'",
       "category": "optional",
-      "command": "npx",
+      "command": "bash",
       "args": [
-        "-y",
-        "@taazkareem/clickup-mcp-server"
+        "-c",
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh clickup)\"; exec npx -y @djclarkson/clickup-mcp-server@0.8.5"
       ],
       "requiredKeys": [
-        "CLICKUP_API_TOKEN"
+        "CLICKUP_API_KEY",
+        "CLICKUP_TEAM_ID"
       ],
       "keyDescriptions": {
-        "CLICKUP_API_TOKEN": "ClickUp personal API token. See setupInstructions."
+        "CLICKUP_API_KEY": "Your ClickUp Personal API Token. Find it at: Settings > Apps > API Token",
+        "CLICKUP_TEAM_ID": "Your ClickUp Workspace ID. Find it in your workspace URL (the numeric ID)"
       },
       "setupInstructions": [
-        "Go to https://app.clickup.com",
-        "Click your avatar (bottom-left) > Settings",
-        "Navigate to Apps > API Token",
-        "Click 'Generate' or copy your existing personal token",
-        "If you need workspace access, ask your manager",
-        "Token format: pk_XXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+        "Each person gets their own ClickUp Personal API Token:",
+        "1. Go to https://app.clickup.com/settings/apps",
+        "2. Under 'API Token', click 'Generate' (or copy existing)",
+        "3. Find your Team/Workspace ID from any ClickUp URL (the numeric ID after /t/)",
+        "4. Paste both when the setup script prompts you"
       ],
-      "visibility": "public"
+      "promptExamples": [
+        "Show all open tasks in the Chief of Staff list due this week",
+        "Create a task for the n8n MCP server setup and assign it to Jack",
+        "Add a comment to the channel partner automation task with today's update"
+      ],
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.25,
+        "user_count": 8
+      },
+      "keyVaults": {
+        "CLICKUP_API_KEY": "user",
+        "CLICKUP_TEAM_ID": "user"
+      }
+    },
+    "ollama": {
+      "name": "Ollama (Local LLM)",
+      "description": "Run local AI models via Ollama — deepseek, llama, mistral, and more",
+      "recommended": false,
+      "authType": "local",
+      "healthCheck": "curl -sf -o /dev/null http://localhost:11434/api/tags",
+      "category": "optional",
+      "scope": "user",
+      "command": "bash",
+      "args": [
+        "-c",
+        "set -a; [ -f ~/.claude/.env ] && source ~/.claude/.env; [ -f ~/.claude/.env.local ] && source ~/.claude/.env.local; set +a; exec npx -y @egen-guru/mcp-ollama@0.16.0"
+      ],
+      "env": {
+        "OLLAMA_HOST": "http://localhost:11434",
+        "OLLAMA_MODEL": "deepseek-r1:32b"
+      },
+      "requiredKeys": [],
+      "optionalKeys": [],
+      "setupInstructions": [
+        "1. Install Ollama: https://ollama.com/download",
+        "2. Pull a model: ollama pull deepseek-r1:32b  (or any model you prefer)",
+        "3. Ollama must be running locally for this server to connect"
+      ],
+      "promptExamples": [
+        "Use the local Ollama model to summarize this document without sending data externally",
+        "Run a quick sanity check on this Apex class using the local model",
+        "Ask deepseek-r1 to review this flow logic offline"
+      ],
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.25,
+        "user_count": 1
+      }
+    },
+    "zapier": {
+      "name": "Zapier",
+      "description": "Trigger Zapier zaps and automations directly from Claude",
+      "recommended": false,
+      "remoteAvailable": "claude.ai",
+      "authType": "key",
+      "category": "optional",
+      "scope": "user",
+      "command": "bash",
+      "args": [
+        "-c",
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh zapier)\"; exec npx -y @zapier/mcp@latest --url \"$ZAPIER_MCP_URL\""
+      ],
+      "requiredKeys": [
+        "ZAPIER_MCP_URL"
+      ],
+      "keyDescriptions": {
+        "ZAPIER_MCP_URL": "Your personal Zapier Integration URL from zapier.com/mcp — looks like https://mcp.zapier.com/api/mcp/a/XXXXXX/mcp"
+      },
+      "setupInstructions": [
+        "1. Go to https://zapier.com/mcp",
+        "2. Click '+ New MCP Server', choose 'Claude Code' as the client",
+        "3. On the Configure tab, click '+ Add tool' and add any Zapier actions you want Claude to trigger",
+        "4. Click 'Connect' at the top",
+        "5. Copy the Integration URL (e.g. https://mcp.zapier.com/api/mcp/a/XXXXXX/mcp)",
+        "6. Paste it when prompted for ZAPIER_MCP_URL"
+      ],
+      "promptExamples": [
+        "Trigger the new lead notification zap for this contact",
+        "List available Zapier actions connected to this project",
+        "Run the invoice-to-Slack zap with these parameters"
+      ],
+      "visibility": "public",
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.25,
+        "user_count": 1
+      },
+      "keyVaults": {
+        "ZAPIER_MCP_URL": "user"
+      }
+    },
+    "hudu": {
+      "name": "Hudu Documentation",
+      "description": "Access IT documentation, asset passwords, knowledge base articles, and company records directly from Hudu",
+      "recommended": false,
+      "authType": "key",
+      "healthCheck": "curl -sf -o /dev/null -H 'x-api-key: $HUDU_API_KEY' '$HUDU_BASE_URL/api/v1/companies?page_size=1'",
+      "category": "optional",
+      "command": "bash",
+      "args": [
+        "-c",
+        "eval \"$($HOME/.claude/scripts/occ-fetch-secrets.sh hudu)\"; exec node \"${HUDU_MCP_PATH:-$HOME/hudu2-mcp}/build/index.js\""
+      ],
+      "requiredKeys": [
+        "HUDU_BASE_URL",
+        "HUDU_API_KEY"
+      ],
+      "optionalKeys": [
+        "HUDU_MCP_PATH"
+      ],
+      "keyDescriptions": {
+        "HUDU_BASE_URL": "Your Hudu instance URL (e.g. https://yourcompany.huducloud.com)",
+        "HUDU_API_KEY": "Your personal Hudu API key — Hudu Admin → API Keys → New API Key"
+      },
+      "setupInstructions": [
+        "1. You need a personal Hudu API key. Get one from IT, or generate at Hudu Admin → API Keys.",
+        "2. The Hudu MCP server (Hudu2-MCP) will be installed automatically to ~/hudu2-mcp.",
+        "   Requires: git, node, npm (already installed on most machines).",
+        "3. Set HUDU_MCP_PATH in ~/.claude/.env.local to use a custom install location."
+      ],
+      "promptExamples": [
+        "Look up the password for the [Platform API] admin account in Hudu",
+        "Show all assets for the [Your Product] company in Hudu",
+        "Find the KB article about VoIP provisioning"
+      ],
+      "visibility": "internal",
+      "roles": [
+        "user",
+        "admin"
+      ],
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.5,
+        "user_count": 4
+      },
+      "keyVaults": {
+        "HUDU_API_KEY": "user",
+        "HUDU_BASE_URL": "user",
+        "HUDU_MCP_PATH": "user"
+      }
+    },
+    "secrets-manager": {
+      "name": "[Your password manager] Secrets Manager",
+      "description": "Access your personal [Your password manager] vault from Claude — retrieve credentials, look up passwords by record type, and manage your own secrets without leaving your session",
+      "recommended": false,
+      "authType": "oauth",
+      "healthCheck": "test -f ~/.secrets-manager/config.json",
+      "category": "optional",
+      "command": "bash",
+      "args": [
+        "-c",
+        "exec npx -y @example/secrets-mcp@latest"
+      ],
+      "requiredKeys": [],
+      "derivedToken": "KSM_CONFIG_REGISTERED",
+      "setupInstructions": [
+        "You need a one-time token (OTC) from IT to register this device.",
+        "IT: [Your password manager] Admin Console → Secrets Manager → [OCC App] → Add Device → Copy the Base64 token",
+        "Paste the token when prompted. Device registration is automatic and one-time per machine.",
+        "After registration, ~/.secrets-manager/config.json is created and used for all future auth."
+      ],
+      "keyDescriptions": {},
+      "promptExamples": [
+        "Get the value of my ClickUp API token from [Your password manager]",
+        "List all secrets in my personal [Your password manager] vault",
+        "Store this new API key in my [Your password manager] vault"
+      ],
+      "visibility": "internal",
+      "roles": [
+        "user",
+        "admin"
+      ],
+      "roi": {
+        "role": "user",
+        "hrs_saved_per_week": 0.25,
+        "user_count": 4
+      }
     }
   },
   "categories": {
