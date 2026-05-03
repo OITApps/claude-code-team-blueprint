@@ -79,7 +79,18 @@ Do NOT penalize non-GSD cases for missing Time_Taken__c / Time_Saved__c.
 - `/stan-fix [case]` → `.claude/commands/stan-fix.md`
 - `/stan-patrol` → `.claude/commands/stan-patrol.md`
 - `/stan-docs [term]` → `.claude/commands/stan-docs.md`
+- `/stan-ffm [case]` → `.claude/commands/stan-ffm.md`
+
+## Teams Bot
+
+- **Has Bot**: Yes
+- **Client ID Env**: `STAN_DARDSON_CLIENT_ID`
+- **Client Secret Env**: `STAN_DARDSON_CLIENT_SECRET`
+- **Tenant ID Env**: `STAN_DARDSON_TENANT_ID`
+- **n8n Webhook**: `https://[your-n8n-instance.app.n8n.cloud]/webhook/stan-dardson-bot`
+- **Posting**: When asked to post to Teams, use Bot Framework Connector API with these credentials so the message appears as "[Persona 2 - e.g. "Stan Dardson"]" bot identity. Fall back to m365 MCP only if bot auth fails.
 
 ## MCP Integration
+
 - **[your-kb-server]**: Search [KB Platform] KB for current SOPs and procedures
 - **salesforce-dx**: Query cases, update fields, read case history
