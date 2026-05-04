@@ -4,10 +4,9 @@
 #   source ~/claude-config/scripts/check-announcements.sh [project-dir]
 #   ~/claude-config/scripts/check-announcements.sh [project-dir]
 
-PROJ_DIR="${1:-.}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ANNOUNCEMENTS="$SCRIPT_DIR/announcements.json"
-SEEN_FILE="$PROJ_DIR/.claude/.announcements-seen"
+SEEN_FILE="$HOME/.claude/.announcements-seen"
 
 if [[ ! -f "$ANNOUNCEMENTS" ]]; then
   return 0 2>/dev/null || exit 0
@@ -34,7 +33,7 @@ if os.path.exists(seen_file):
         seen = set(line.strip() for line in f if line.strip())
 
 # Find unread announcements
-unread = [a for a in data.get("announcements", []) if a.get("id") not in seen]
+unread = [a for a in data.get("announcements", []) if a.get("id") and a["id"] not in seen]
 
 if not unread:
     sys.exit(0)
@@ -71,5 +70,6 @@ print()
 # Mark all as seen
 with open(seen_file, 'a') as f:
     for a in unread:
-        f.write(a["id"] + "\n")
+        if a.get("id"):
+            f.write(a["id"] + "\n")
 PYEOF
