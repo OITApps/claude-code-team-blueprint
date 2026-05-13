@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # catalog.sh — Browse, enable, and disable [Your Company] plugins and MCP servers
-# Usage: catalog.sh [project-dir]
-#   catalog.sh .                  # Interactive menu
-#   catalog.sh . --list           # Show current status
-#   catalog.sh . --sync           # Re-sync from latest catalog
+# Usage: catalog.sh [project-dir] [action]
+#   catalog.sh                        # Interactive menu
+#   catalog.sh status                 # Show current status (alias: --list, -l)
+#   catalog.sh sync                   # Re-sync from latest catalog + deploy (alias: --sync, -s)
+#   catalog.sh add <server-id>        # Add a single MCP server (collect keys, register, enable)
+#   catalog.sh install <server-id>    # Alias for add
+#   catalog.sh uninstall <server-id>  # Remove an MCP server from Claude Code
+#   catalog.sh . --deploy             # Deploy enabled MCP servers to ~/.claude.json
 #
 # Reads catalog.json from the claude-config repo (local clone or GitHub).
 # Writes to .claude/settings.local.json and .mcp.json in the project dir.
+# --deploy writes MCP server configs to ~/.claude.json (global).
 
 set -euo pipefail
 
@@ -16,13 +21,43 @@ if [[ -f "$ANN_DIR/check-announcements.sh" ]]; then
   bash "$ANN_DIR/check-announcements.sh" "${1:-.}"
 fi
 
-PROJECT_DIR="${1:-.}"
-ACTION="${2:-}"
+# Parse --no-redirect flag (can appear anywhere in args)
+_NO_REDIRECT=false
+_args=()
+for _a in "$@"; do
+  if [[ "$_a" == "--no-redirect" ]]; then
+    _NO_REDIRECT=true
+  else
+    _args+=("$_a")
+  fi
+done
+set -- "${_args[@]+"${_args[@]}"}"
+
+# Handle "catalog.sh <subcommand> [arg]" shorthand (no project-dir needed)
+# Recognized subcommands that don't require a project-dir positional arg:
+_KNOWN_SUBCOMMANDS="add|install|uninstall|remove|status|sync"
+if [[ "${1:-}" =~ ^(${_KNOWN_SUBCOMMANDS})$ ]]; then
+  PROJECT_DIR="."
+  ACTION="$1"
+  ADD_SERVER_ID="${2:-}"
+else
+  PROJECT_DIR="${1:-.}"
+  ACTION="${2:-}"
+  ADD_SERVER_ID="${3:-}"
+fi
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CATALOG="$SCRIPT_DIR/catalog.json"
 SETTINGS="$PROJECT_DIR/.claude/settings.local.json"
 MCP_FILE="$PROJECT_DIR/.mcp.json"
 ENV_FILE="$PROJECT_DIR/.env"
+GLOBAL_SETTINGS="$HOME/.claude/settings.json"
+GLOBAL_MCP="$HOME/.claude.json"
+
+OCC_ROLE_FILE="$HOME/.claude/.occ-role"
+OCC_ROLE="user"
+if [[ -f "$OCC_ROLE_FILE" ]]; then
+  OCC_ROLE="$(cat "$OCC_ROLE_FILE" | tr -d '[:space:]')"
+fi
 
 # Colors
 RED='\033[0;31m'
@@ -56,23 +91,29 @@ except: pass
 }
 
 get_enabled_mcps() {
-  if [[ -f "$SETTINGS" ]]; then
-    python3 -c "
+  python3 -c "
 import json, sys
-try:
-    d = json.load(open('$SETTINGS'))
-    for s in d.get('enabledMcpjsonServers', []):
-        print(s)
-except: pass
+seen = set()
+for path in ['$GLOBAL_SETTINGS', '$SETTINGS']:
+    try:
+        d = json.load(open(path))
+        for s in d.get('enabledMcpjsonServers', []):
+            if s not in seen:
+                seen.add(s)
+                print(s)
+    except: pass
 " 2>/dev/null
-  fi
 }
 
 catalog_plugins() {
   python3 -c "
 import json
 c = json.load(open('$CATALOG'))
+user_role = '$OCC_ROLE'
 for pid, p in sorted(c['plugins'].items(), key=lambda x: (not x[1]['recommended'], x[1]['category'], x[1]['name'])):
+    allowed = p.get('roles', ['user', 'admin'])
+    if user_role not in allowed:
+        continue
     rec = '*' if p['recommended'] else ' '
     print(f\"{rec}|{pid}|{p['name']}|{p['description']}|{p['category']}\")
 "
@@ -82,7 +123,11 @@ catalog_mcps() {
   python3 -c "
 import json
 c = json.load(open('$CATALOG'))
+user_role = '$OCC_ROLE'
 for mid, m in sorted(c['mcpServers'].items(), key=lambda x: (not x[1]['recommended'], x[1]['category'], x[1]['name'])):
+    allowed = m.get('roles', ['user', 'admin'])
+    if user_role not in allowed:
+        continue
     rec = '*' if m['recommended'] else ' '
     keys = ', '.join(m.get('requiredKeys', []))
     print(f\"{rec}|{mid}|{m['name']}|{m['description']}|{m['category']}|{keys}\")
@@ -156,7 +201,8 @@ toggle_menu() {
   fi
 
   echo ""
-  printf "${BOLD}Select ${type} to toggle (space-separated numbers, or 'r' for recommended, 'a' for all, 'q' to quit):${NC}\n"
+  printf "${BOLD}Select ${type} to toggle:${NC}\n"
+  printf "  ${DIM}Type numbers separated by spaces to toggle on/off (e.g. 1 3 5)${NC}\n"
   echo ""
 
   for i in "${!items[@]}"; do
@@ -170,7 +216,7 @@ toggle_menu() {
   done
 
   echo ""
-  printf "  ${DIM}r) Enable recommended only  a) Enable all  n) Disable all  q) Done${NC}\n"
+  printf "  ${DIM}r) Recommended only  a) All on  n) All off  q) Done${NC}\n"
   printf "\n  Choice: "
   read -r choice
 
@@ -272,7 +318,7 @@ PYEOF
 setup_mcp_keys() {
   local mid="$1"
   echo ""
-  
+
   # Get key info from catalog
   python3 - "$mid" "$CATALOG" "$ENV_FILE" "$MCP_FILE" <<'PYEOF'
 import json, sys, os
@@ -320,14 +366,18 @@ for key in all_keys:
     current = env.get(key, '')
     desc = descriptions.get(key, '')
     req_label = '(required)' if key in required else '(optional)'
-    
+
     if current and current not in ('', 'REPLACE_ME'):
         print(f"    {key}: [already set]")
     else:
         print(f"    {key} {req_label}")
         if desc:
             print(f"      Source: {desc}")
-        val = input(f"      Value: ").strip()
+        try:
+            import getpass
+            val = getpass.getpass(f"      Value: ").strip()
+        except Exception:
+            val = ''
         if val:
             env[key] = val
             changed = True
@@ -346,7 +396,7 @@ if changed:
         mcp = json.load(open(mcp_file))
     else:
         mcp = {"mcpServers": {}}
-    
+
     # Build server entry from catalog
     entry = {"command": server["command"], "args": server["args"]}
     srv_env = dict(server.get("env", {}))
@@ -355,7 +405,7 @@ if changed:
             srv_env[key] = env[key]
     if srv_env:
         entry["env"] = srv_env
-    
+
     # Substitute variables in args
     new_args = []
     for arg in entry["args"]:
@@ -363,7 +413,7 @@ if changed:
             arg = arg.replace(f"${{{k}}}", v)
         new_args.append(arg)
     entry["args"] = new_args
-    
+
     mcp["mcpServers"][mid] = entry
     with open(mcp_file, 'w') as f:
         json.dump(mcp, f, indent=2)
@@ -373,16 +423,704 @@ if changed:
 PYEOF
 }
 
+# ── Deploy Mode ─────────────────────────────────────────────────
+
+deploy_global_mcp() {
+  python3 - "$CATALOG" "$GLOBAL_SETTINGS" "$SETTINGS" "$GLOBAL_MCP" <<'PYEOF'
+import json, sys, os
+
+catalog_file = sys.argv[1]
+global_settings_file = sys.argv[2]
+local_settings_file = sys.argv[3]
+global_mcp_file = sys.argv[4]
+
+catalog = json.load(open(catalog_file))
+servers = catalog.get('mcpServers', {})
+
+enabled = set()
+for path in [global_settings_file, local_settings_file]:
+    try:
+        d = json.load(open(path))
+        for s in d.get('enabledMcpjsonServers', []):
+            enabled.add(s)
+    except (FileNotFoundError, json.JSONDecodeError, ValueError):
+        pass
+
+if not enabled:
+    print("  No enabled MCP servers found in settings. Nothing to deploy.")
+    sys.exit(0)
+
+try:
+    with open(global_mcp_file) as f:
+        global_mcp = json.load(f)
+except (FileNotFoundError, json.JSONDecodeError, ValueError):
+    global_mcp = {}
+
+if 'mcpServers' not in global_mcp:
+    global_mcp['mcpServers'] = {}
+
+existing_keys = set(global_mcp['mcpServers'].keys())
+catalog_keys = set(servers.keys())
+
+added = []
+updated = []
+skipped_missing = []
+warned_keys = []
+
+for mid in sorted(enabled):
+    if mid not in servers:
+        skipped_missing.append(mid)
+        continue
+
+    srv = servers[mid]
+    entry = {
+        "type": "stdio",
+        "command": srv["command"],
+        "args": list(srv["args"]),
+    }
+    srv_env = dict(srv.get("env", {}))
+    if srv_env:
+        entry["env"] = srv_env
+    else:
+        entry["env"] = {}
+
+    missing_keys = []
+    for key in srv.get("requiredKeys", []):
+        val = os.environ.get(key, "")
+        if not val:
+            missing_keys.append(key)
+    if missing_keys:
+        warned_keys.append((mid, missing_keys))
+
+    if mid in existing_keys:
+        if global_mcp['mcpServers'][mid] != entry:
+            updated.append(mid)
+        global_mcp['mcpServers'][mid] = entry
+    else:
+        added.append(mid)
+        global_mcp['mcpServers'][mid] = entry
+
+removed = []
+for mid in list(global_mcp['mcpServers'].keys()):
+    if mid in catalog_keys and mid not in enabled:
+        del global_mcp['mcpServers'][mid]
+        removed.append(mid)
+
+with open(global_mcp_file, 'w') as f:
+    json.dump(global_mcp, f, indent=2)
+    f.write('\n')
+
+print("  Deploy summary:")
+if added:
+    print("    Added:   " + ", ".join(added))
+if updated:
+    print("    Updated: " + ", ".join(updated))
+if removed:
+    print("    Removed: " + ", ".join(removed))
+if not added and not updated and not removed:
+    print("    No changes — global config already matches.")
+if skipped_missing:
+    print("    Skipped (not in catalog): " + ", ".join(skipped_missing))
+if warned_keys:
+    print("")
+    for mid, keys in warned_keys:
+        print("    \033[0;33mWarning:\033[0m " + mid + " missing env keys: " + ", ".join(keys))
+
+print("  Deployed to: " + global_mcp_file)
+PYEOF
+}
+
+# ── Add Single Server ──────────────────────────────────────────
+
+add_server() {
+  local mid="$1"
+
+  # ── Check if keys already exist (skip credential collection) ────
+  # If all required keys are present, we can register directly without
+  # opening a terminal for getpass input.
+  local _keys_present=false
+  if [[ ! -t 0 ]]; then
+    _keys_present=$(python3 - "$mid" "$CATALOG" "$HOME/.claude/.env" <<'KCHK'
+import json, sys, os
+mid, catalog_file, env_file = sys.argv[1], sys.argv[2], sys.argv[3]
+catalog = json.load(open(catalog_file))
+server = catalog.get('mcpServers', {}).get(mid)
+if not server:
+    print("false"); sys.exit(0)
+required = server.get('requiredKeys', [])
+if not required:
+    print("true"); sys.exit(0)
+env = {}
+if os.path.exists(env_file):
+    for line in open(env_file):
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            k, v = line.split('=', 1)
+            env[k.strip()] = v.strip().strip('"')
+missing = [k for k in required if not env.get(k, '').strip() or env.get(k, '').strip() == 'REPLACE_ME']
+print("false" if missing else "true")
+KCHK
+    )
+  fi
+
+  # ── Interactive terminal check ──────────────────────────────────
+  # If stdin is not a terminal AND keys are missing AND --no-redirect not set,
+  # re-launch in a real terminal so getpass/OAuth can work.
+  # --no-redirect bypasses this check (set automatically in the printed command).
+  if [[ ! -t 0 ]] && [[ "$_keys_present" != "true" ]] && [[ "$_NO_REDIRECT" != true ]]; then
+    # Include --no-redirect so the re-launched command doesn't loop
+    local self_cmd="$SCRIPT_DIR/scripts/catalog.sh add $mid --no-redirect"
+
+    # Detect IDE: only trust env vars that prove we're *inside* an IDE process
+    local _in_ide=false
+    if [[ -n "${VSCODE_IPC_HOOK_CLI:-}" ]] || [[ -n "${CURSOR_TRACE_DIR:-}" ]] || [[ "${TERM_PROGRAM:-}" =~ ^(vscode|cursor)$ ]]; then
+      _in_ide=true
+    fi
+
+    if [[ "$_in_ide" == true ]]; then
+      echo "  Opening IDE terminal to collect credentials securely..."
+      if command -v code &>/dev/null; then
+        code --command workbench.action.terminal.new
+      elif command -v cursor &>/dev/null; then
+        cursor --command workbench.action.terminal.new
+      fi
+      echo ""
+      echo "  Run this in the terminal that just opened:"
+      printf "  ${BOLD}${CYAN}%s${NC}\n" "$self_cmd"
+    elif [[ "$(uname)" == "Darwin" ]]; then
+      # macOS native — open Terminal.app with the command
+      echo "  Opening Terminal to collect credentials securely..."
+      osascript -e "tell application \"Terminal\" to do script \"$self_cmd\"" 2>/dev/null \
+        || open -a Terminal "$self_cmd" 2>/dev/null \
+        || {
+          echo "  Could not open Terminal. Run manually:"
+          printf "  ${BOLD}${CYAN}%s${NC}\n" "$self_cmd"
+        }
+    else
+      # Linux / other — try common terminal emulators
+      echo "  Opening terminal to collect credentials securely..."
+      if command -v gnome-terminal &>/dev/null; then
+        gnome-terminal -- bash -c "$self_cmd; exec bash"
+      elif command -v xterm &>/dev/null; then
+        xterm -e "$self_cmd" &
+      else
+        echo "  Could not detect terminal. Run manually:"
+        printf "  ${BOLD}${CYAN}%s${NC}\n" "$self_cmd"
+      fi
+    fi
+    # Write pending-install marker for session-start hook
+    mkdir -p "$HOME/.claude/pending-installs"
+    echo "$mid" > "$HOME/.claude/pending-installs/$mid"
+
+    echo ""
+    echo "  After setup completes, restart Claude Code to use the new server."
+    return 0
+  fi
+
+  # Validate server exists in catalog
+  if ! python3 -c "import json; c=json.load(open('$CATALOG')); assert '$mid' in c['mcpServers']" 2>/dev/null; then
+    echo "  Error: '$mid' not found in catalog."
+    echo "  Available servers:"
+    python3 -c "
+import json
+c = json.load(open('$CATALOG'))
+for k, v in sorted(c['mcpServers'].items()):
+    print(f\"    {k:20s} — {v['name']}\")
+"
+    exit 1
+  fi
+
+  local server_name
+  server_name=$(python3 -c "import json; print(json.load(open('$CATALOG'))['mcpServers']['$mid']['name'])")
+  echo ""
+  printf "${BOLD}Adding MCP server: ${CYAN}$server_name${NC} ${DIM}($mid)${NC}\n"
+
+  # Step 1: Collect keys (masked via getpass)
+  # Stores secrets to Azure Key Vault (user/company/bot tiers)
+  # Stores config values to .env
+  # Falls back to .env for all keys if az CLI unavailable
+  local global_env="$HOME/.claude/.env"
+  _add_py=$(mktemp /tmp/occ_add_XXXXX)
+  cat > "$_add_py" << 'PYEOF'
+import json, sys, os, getpass, subprocess, shutil
+
+mid = sys.argv[1]
+catalog_file = sys.argv[2]
+env_file = sys.argv[3]
+vault_config_file = os.path.expanduser("~/.claude/.occ-vault.json")
+
+catalog = json.load(open(catalog_file))
+server = catalog['mcpServers'][mid]
+
+# Load .env
+env = {}
+if os.path.exists(env_file):
+    with open(env_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                k, v = line.split('=', 1)
+                env[k.strip()] = v.strip().strip('"')
+
+# Load vault config
+vault_config = {}
+if os.path.exists(vault_config_file):
+    try:
+        vault_config = json.load(open(vault_config_file))
+    except Exception:
+        pass
+
+user_vault = vault_config.get('userVault', '')
+az_available = shutil.which('az') is not None
+
+# Check az login status
+if az_available:
+    try:
+        subprocess.run(['az', 'account', 'show'], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        az_available = False
+        print("  WARN: az CLI not logged in — storing all keys to .env")
+
+def vault_name_for_tier(tier):
+    """Map tier to Azure vault name."""
+    if tier == 'user':
+        return user_vault
+    elif tier == 'company':
+        return 'occ-secrets-company'
+    elif tier == 'bot':
+        return 'occ-secrets-bots'
+    return ''
+
+def get_from_vault(key, tier):
+    """Try to read a key from Azure Key Vault."""
+    if not az_available or tier == 'config':
+        return ''
+    vname = vault_name_for_tier(tier)
+    if not vname:
+        return ''
+    secret_name = key.replace('_', '-')
+    try:
+        result = subprocess.run(
+            ['az', 'keyvault', 'secret', 'show',
+             '--vault-name', vname, '--name', secret_name,
+             '--query', 'value', '-o', 'tsv'],
+            capture_output=True, text=True, timeout=15
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except Exception:
+        pass
+    return ''
+
+def set_in_vault(key, val, tier):
+    """Store a key in Azure Key Vault."""
+    if not az_available or tier == 'config':
+        return False
+    vname = vault_name_for_tier(tier)
+    if not vname:
+        return False
+    secret_name = key.replace('_', '-')
+    try:
+        result = subprocess.run(
+            ['az', 'keyvault', 'secret', 'set',
+             '--vault-name', vname, '--name', secret_name,
+             '--value', val, '-o', 'none'],
+            capture_output=True, text=True, timeout=15
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+required = server.get('requiredKeys', [])
+optional = server.get('optionalKeys', [])
+descriptions = server.get('keyDescriptions', {})
+key_vaults = server.get('keyVaults', {})
+derived_token = server.get('derivedToken', '')
+
+# If derived token already set (in vault or .env), skip
+if derived_token:
+    dt_tier = key_vaults.get(derived_token, 'config')
+    dt_val = get_from_vault(derived_token, dt_tier) or env.get(derived_token, '')
+    if dt_val.strip() not in ('', 'REPLACE_ME'):
+        print(f"  {derived_token}: [already set — skipping key collection]")
+        sys.exit(0)
+
+all_keys = required + optional
+if not all_keys:
+    print(f"  No keys required.")
+    sys.exit(0)
+
+instructions = server.get('setupInstructions', [])
+if instructions:
+    print(f"\n  Setup instructions:")
+    for i, step in enumerate(instructions, 1):
+        print(f"    {i}. {step}")
+    print()
+
+env_changed = False
+for key in all_keys:
+    tier = key_vaults.get(key, 'config')
+    desc = descriptions.get(key, '')
+    req_label = '(required)' if key in required else '(optional)'
+
+    # Check vault first, then .env
+    current = get_from_vault(key, tier) if tier != 'config' else ''
+    if not current:
+        current = env.get(key, '')
+
+    if current and current not in ('', 'REPLACE_ME'):
+        print(f"  {key}: [already set]")
+        continue
+
+    if key in optional:
+        print(f"  {key}: [optional — auto-resolved at runtime]")
+        continue
+
+    if desc:
+        print(f"  {key} {req_label} — {desc}")
+    else:
+        print(f"  {key} {req_label}")
+
+    try:
+        val = getpass.getpass("    Value: ").strip()
+    except Exception:
+        val = ''
+        print("  (could not read input — skipping)")
+
+    if val:
+        if tier != 'config' and az_available:
+            # Store to vault
+            if set_in_vault(key, val, tier):
+                print(f"    → stored in Azure Key Vault ({tier})")
+            else:
+                # Fallback to .env
+                env[key] = val
+                env_changed = True
+                print(f"    → vault write failed, stored in .env")
+        else:
+            # Config key or no az — store to .env
+            env[key] = val
+            env_changed = True
+
+if env_changed:
+    with open(env_file, 'w') as f:
+        f.write("# [Your Company] MCP Server Configuration\n")
+        f.write(f"# Updated by catalog.sh on {__import__('datetime').date.today()}\n")
+        f.write("# NEVER commit this file.\n\n")
+        for k, v in sorted(env.items()):
+            f.write(f'{k}="{v}"\n')
+    os.chmod(env_file, 0o600)
+    print(f"\n  Config keys saved to {env_file}")
+PYEOF
+
+  set +e
+  python3 "$_add_py" "$mid" "$CATALOG" "$global_env"
+  local _key_rc=$?
+  set -e
+  rm -f "$_add_py"
+  [[ $_key_rc -ne 0 ]] && return 1
+
+  # Re-source env
+  set -a; source "$global_env" 2>/dev/null; set +a
+
+  # Step 1b: ClickUp OAuth flow (if applicable)
+  if [[ "$mid" == "clickup" ]] \
+      && [[ -n "${CLICKUP_CLIENT_ID:-}" ]] \
+      && [[ -n "${CLICKUP_CLIENT_SECRET:-}" ]] \
+      && [[ -z "${CLICKUP_API_TOKEN:-}" ]]; then
+    echo ""
+    echo "  -- ClickUp OAuth --"
+    echo "  Opening browser — authorize the app in ClickUp..."
+    local _cu_url="https://app.clickup.com/api?client_id=${CLICKUP_CLIENT_ID}&redirect_uri=http://localhost:3456"
+    if [[ "$(uname)" == "Darwin" ]]; then
+      open "$_cu_url"
+    else
+      xdg-open "$_cu_url" 2>/dev/null || printf "  Please open: %s\n" "$_cu_url"
+    fi
+    echo "  Waiting for callback on localhost:3456..."
+
+    _cu_py=$(mktemp /tmp/cu_oauth_XXXXX)
+    cat > "$_cu_py" << 'CUEOF'
+import http.server, urllib.parse
+code = [None]
+
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        p = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+        code[0] = p.get('code', [None])[0]
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b'<html><body style="font-family:sans-serif;padding:40px">'
+                         b'<h2>Authorized!</h2><p>Return to your terminal.</p></body></html>')
+    def log_message(self, *a):
+        pass
+
+http.server.HTTPServer(('localhost', 3456), H).handle_request()
+if code[0]:
+    print(code[0])
+CUEOF
+    local _cu_code
+    _cu_code=$(python3 "$_cu_py" 2>/dev/null)
+    rm -f "$_cu_py"
+
+    if [[ -n "$_cu_code" ]]; then
+      echo "  Exchanging for access token..."
+      local _cu_resp
+      _cu_resp=$(curl -s -X POST "https://api.clickup.com/api/v2/oauth/token" \
+        -H "Content-Type: application/json" \
+        -d "{\"client_id\":\"${CLICKUP_CLIENT_ID}\",\"client_secret\":\"${CLICKUP_CLIENT_SECRET}\",\"code\":\"${_cu_code}\"}")
+      local _cu_token
+      _cu_token=$(echo "$_cu_resp" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('access_token',''))" 2>/dev/null || true)
+
+      if [[ -n "${_cu_token:-}" ]]; then
+        echo "  ClickUp OAuth complete — token saved"
+        python3 - "$global_env" "$_cu_token" << 'CUENVEOF'
+import sys, os
+env_file, token = sys.argv[1], sys.argv[2]
+env = {}
+if os.path.exists(env_file):
+    for line in open(env_file):
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            k, v = line.split('=', 1)
+            env[k.strip()] = v.strip().strip('"')
+env['CLICKUP_API_TOKEN'] = token
+with open(env_file, 'w') as fh:
+    fh.write("# [Your Company] MCP Server Configuration\n# NEVER commit this file.\n\n")
+    for k, v in sorted(env.items()):
+        fh.write(f'{k}="{v}"\n')
+os.chmod(env_file, 0o600)
+CUENVEOF
+        set -a; source "$global_env" 2>/dev/null; set +a
+      else
+        printf "  Token exchange failed: %s\n" "$_cu_resp"
+        return 1
+      fi
+    else
+      echo "  No authorization code received."
+      return 1
+    fi
+  fi
+
+  # Step 1b: Hudu MCP server install (if applicable)
+  if [[ "$mid" == "hudu" ]]; then
+    local _hudu_path="${HUDU_MCP_PATH:-$HOME/hudu2-mcp}"
+    local _hudu_index="$_hudu_path/build/index.js"
+    if [[ -f "$_hudu_index" ]]; then
+      echo "  Hudu MCP server already installed at $_hudu_path"
+    else
+      echo ""
+      echo "  -- Installing Hudu MCP Server --"
+      echo "  Cloning Hudu2-MCP to $_hudu_path..."
+      if ! command -v git &>/dev/null; then
+        echo "  ERROR: git is required to install Hudu MCP. Install git and retry."
+        return 1
+      fi
+      if ! command -v npm &>/dev/null; then
+        echo "  ERROR: npm is required to build Hudu MCP. Install Node.js/npm and retry."
+        return 1
+      fi
+      if [[ -d "$_hudu_path" ]]; then
+        echo "  Directory exists but build/index.js missing — running build..."
+      else
+        git clone --depth 1 https://github.com/Npab19/Hudu2-MCP "$_hudu_path" 2>&1 | sed 's/^/    /'
+      fi
+      echo "  Installing dependencies..."
+      npm --prefix "$_hudu_path" install --silent 2>&1 | tail -3
+      echo "  Building..."
+      npm --prefix "$_hudu_path" run build 2>&1 | tail -3
+      if [[ -f "$_hudu_index" ]]; then
+        echo "  Hudu MCP server installed at $_hudu_path"
+      else
+        echo "  ERROR: Build failed — $_hudu_index not found."
+        echo "  Try manually: cd $_hudu_path && npm install && npm run build"
+        return 1
+      fi
+    fi
+  fi
+
+  # Step 1c: [Your password manager] device registration (if applicable)
+  if [[ "$mid" == "secrets-manager" ]]; then
+    local _ksm_config="$HOME/.secrets-manager/ksm-config.json"
+    if [[ -f "$_ksm_config" ]]; then
+      echo "  [Your password manager] device already registered — skipping."
+    else
+      echo ""
+      echo "  -- [Your password manager] Device Registration --"
+      echo "  Paste your one-time token (OTC) from IT."
+      echo "  (IT: [Your password manager] Admin → Secrets Manager → [OCC App] → Add Device)"
+      echo ""
+      local _ksm_token
+      _ksm_token=$(python3 -c "
+import getpass, sys
+try:
+    t = getpass.getpass('  One-time token: ').strip()
+    print(t)
+except Exception:
+    print('')
+" 2>/dev/null)
+      if [[ -z "$_ksm_token" ]]; then
+        echo "  No token entered — skipping [Your password manager] registration."
+        echo "  Re-run 'catalog.sh add secrets-manager' when you have a token."
+        return 1
+      fi
+      echo ""
+      echo "  Registering device with [Your password manager] (this may take a few seconds)..."
+      mkdir -p "$HOME/.secrets-manager"
+      KSM_TOKEN="$_ksm_token" npx -y @example/secrets-mcp@latest >/dev/null 2>&1 &
+      local _ksm_pid=$!
+      local _ksm_registered=false
+      for _i in $(seq 1 30); do
+        if [[ -f "$_ksm_config" ]]; then
+          _ksm_registered=true
+          break
+        fi
+        sleep 0.5
+      done
+      kill "$_ksm_pid" 2>/dev/null || true
+      wait "$_ksm_pid" 2>/dev/null || true
+      if [[ "$_ksm_registered" == true ]]; then
+        echo "  Device registered — config saved to ~/.secrets-manager/config.json"
+        python3 - "$global_env" << 'KSMEOF'
+import sys, os
+env_file = sys.argv[1]
+env = {}
+if os.path.exists(env_file):
+    for line in open(env_file):
+        line = line.strip()
+        if line and not line.startswith('#') and '=' in line:
+            k, v = line.split('=', 1)
+            env[k.strip()] = v.strip().strip('"')
+env['KSM_CONFIG_REGISTERED'] = 'true'
+with open(env_file, 'w') as fh:
+    fh.write("# [Your Company] MCP Server Configuration\n# NEVER commit this file.\n\n")
+    for k, v in sorted(env.items()):
+        fh.write(f'{k}="{v}"\n')
+os.chmod(env_file, 0o600)
+KSMEOF
+        set -a; source "$global_env" 2>/dev/null; set +a
+      else
+        echo "  ERROR: Device registration timed out — ksm-config.json was not created."
+        echo "  Check that your token is valid and try again."
+        return 1
+      fi
+    fi
+  fi
+
+  # Step 2: Register via claude mcp add
+  echo ""
+  echo "  Registering $server_name with Claude Code..."
+
+  python3 - "$mid" "$CATALOG" <<'PYEOF'
+import json, sys, subprocess
+
+mid = sys.argv[1]
+catalog = json.load(open(sys.argv[2]))
+m = catalog['mcpServers'][mid]
+
+subprocess.run(["claude", "mcp", "remove", mid, "-s", "user"], capture_output=True)
+
+env_flags = []
+for key, val in m.get("env", {}).items():
+    env_flags += ["-e", f"{key}={val}"]
+
+cmd = [
+    "claude", "mcp", "add", mid,
+    "-s", "user",
+    *env_flags,
+    "--",
+    m["command"],
+    *m["args"]
+]
+result = subprocess.run(cmd, capture_output=True, text=True)
+if result.returncode == 0:
+    print(f"  Registered globally via 'claude mcp add -s user'")
+else:
+    print(f"  ERROR: {result.stderr.strip()}")
+    sys.exit(1)
+PYEOF
+
+  # Step 3: Enable in global settings.json (skip if launchPolicy is "manual")
+  local global_settings="$HOME/.claude/settings.json"
+  python3 - "$mid" "$global_settings" "$CATALOG" <<'PYEOF'
+import json, sys, os
+
+mid = sys.argv[1]
+settings_file = sys.argv[2]
+catalog_file = sys.argv[3]
+
+catalog = json.load(open(catalog_file))
+entry = catalog.get('mcpServers', {}).get(mid, {})
+launch_policy = entry.get('launchPolicy', 'auto')
+
+if launch_policy == 'manual':
+    print(f"  Skipping auto-enable (launchPolicy=manual) — enable with /mcp when needed")
+    sys.exit(0)
+
+try:
+    settings = json.load(open(settings_file)) if os.path.exists(settings_file) else {}
+except (json.JSONDecodeError, FileNotFoundError):
+    settings = {}
+
+mcps = settings.get('enabledMcpjsonServers', [])
+if mid not in mcps:
+    mcps.append(mid)
+    settings['enabledMcpjsonServers'] = mcps
+    with open(settings_file, 'w') as f:
+        json.dump(settings, f, indent=2)
+        f.write('\n')
+    print(f"  Enabled in {settings_file}")
+else:
+    print(f"  Already enabled in {settings_file}")
+PYEOF
+
+  # Clear pending-install marker on success
+  rm -f "$HOME/.claude/pending-installs/$mid"
+
+  echo ""
+  printf "${GREEN}  Done!${NC} Restart Claude Code to use ${BOLD}$server_name${NC}.\n"
+  echo ""
+}
+
 # ── Main ────────────────────────────────────────────────────────
 
 case "${ACTION}" in
-  --list|-l)
+  --list|-l|status)
     list_status
     ;;
-  --sync|-s)
+  --deploy|-d)
+    echo "Deploying enabled MCP servers to global config..."
+    deploy_global_mcp
+    ;;
+  --sync|-s|sync)
     echo "Syncing catalog from GitHub..."
     git -C "$SCRIPT_DIR" pull --quiet 2>/dev/null || echo "  Warning: Could not pull latest catalog"
+    echo ""
+    echo "Deploying enabled MCP servers to global config..."
+    deploy_global_mcp
+    echo ""
     list_status
+    ;;
+  add|install)
+    SERVER_ID="${ADD_SERVER_ID:-}"
+    if [[ -z "$SERVER_ID" ]]; then
+      echo "Usage: catalog.sh add <server-id>"
+      echo "Example: catalog.sh add clickup"
+      exit 1
+    fi
+    add_server "$SERVER_ID"
+    ;;
+  uninstall|remove)
+    SERVER_ID="${ADD_SERVER_ID:-}"
+    if [[ -z "$SERVER_ID" ]]; then
+      echo "Usage: catalog.sh uninstall <server-id>"
+      echo "Example: catalog.sh uninstall clickup"
+      exit 1
+    fi
+    echo "  Removing $SERVER_ID from Claude Code..."
+    claude mcp remove "$SERVER_ID" -s user 2>/dev/null || true
+    echo "  Done. Restart Claude Code to apply."
     ;;
   *)
     # Interactive mode
@@ -415,7 +1153,7 @@ case "${ACTION}" in
           git -C "$SCRIPT_DIR" pull --quiet 2>/dev/null || echo "  Warning: Could not pull"
           echo "  Done."
           ;;
-        q|Q) 
+        q|Q)
           echo ""
           echo "  Restart Claude Code to apply changes."
           echo ""
